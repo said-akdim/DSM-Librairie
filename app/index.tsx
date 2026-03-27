@@ -167,10 +167,51 @@ function CarteFidelite({ client }: { client: any }) {
 }
 
 /* ══════════════════════════════════════
+   BARCODE VISUEL
+══════════════════════════════════════ */
+function BarcodeVisuel({ numCarte }: { numCarte: string }) {
+  const seed = (numCarte || "0000").toString();
+  const bars: number[] = [];
+  for (let i = 0; i < 60; i++) {
+    const c = seed.charCodeAt(i % seed.length);
+    bars.push(((c * (i + 3)) % 3) + 1);
+  }
+  const fullNum = `6947${seed.padStart(9, "0")}`;
+  return (
+    <View style={{ alignItems: "center", paddingVertical: 24 }}>
+      <View style={{ flexDirection: "row", height: 64, overflow: "hidden" }}>
+        {bars.map((w, i) => (
+          <View
+            key={i}
+            style={{
+              width: w * 2,
+              height: 64,
+              backgroundColor: i % 2 === 0 ? "#111" : "#fff",
+            }}
+          />
+        ))}
+      </View>
+      <Text
+        style={{
+          fontSize: 13,
+          letterSpacing: 3,
+          marginTop: 8,
+          color: "#333",
+          fontWeight: "bold",
+        }}
+      >
+        {fullNum}
+      </Text>
+    </View>
+  );
+}
+
+/* ══════════════════════════════════════
    ONGLET ACCUEIL
 ══════════════════════════════════════ */
 function OngletAccueil({ client }: { client: any }) {
   const [achats, setAchats] = useState<any[]>([]);
+  const [showHistorique, setShowHistorique] = useState(false);
 
   useState(() => {
     supabase
@@ -178,48 +219,101 @@ function OngletAccueil({ client }: { client: any }) {
       .select("*")
       .eq("client_id", client.id)
       .order("date_achat", { ascending: false })
-      .limit(3)
+      .limit(5)
       .then(({ data }) => {
         if (data) setAchats(data);
       });
   });
 
+  const gains6mois = achats.reduce((sum, a) => sum + (a.points_gagnes || 0), 0);
+  const solde = (client.points * 0.1).toFixed(2).replace(".", ",");
+  const gainsDH = (gains6mois * 0.1).toFixed(2).replace(".", ",");
+
   return (
-    <ScrollView style={s.ongletContainer}>
-      <View style={{ padding: 16 }}>
-        <CarteFidelite client={client} />
-      </View>
-      <View style={s.statsGrid}>
-        {[
-          { icon: "📚", label: "Genre", val: client.genre_favori },
-          { icon: "⭐", label: "Niveau", val: client.niveau },
-          { icon: "🎁", label: "Offres", val: "2 actives" },
-          { icon: "🤝", label: "Filleuls", val: "1" },
-        ].map((stat, i) => (
-          <View key={i} style={s.statCard}>
-            <Text style={s.statIcon}>{stat.icon}</Text>
-            <Text style={s.statVal}>{stat.val}</Text>
-            <Text style={s.statLabel}>{stat.label}</Text>
+    <ScrollView style={s.ongletContainer} showsVerticalScrollIndicator={false}>
+      {/* Bloc Solde – style Marjane */}
+      <View style={s.soldeBloc}>
+        <View style={s.soldeTopRow}>
+          <View style={{ flex: 1 }}>
+            <Text style={s.soldeLbl}>Solde disponible ⓘ</Text>
+            <Text style={s.soldeVal}>{solde} DH</Text>
+            <View style={s.soldeUnderline} />
           </View>
-        ))}
-      </View>
-      <Text style={s.sectionTitre}>📖 Derniers achats</Text>
-      {achats.length === 0 ? (
-        <Text style={{ textAlign: "center", color: "#7AAAD0", padding: 20 }}>
-          Aucun achat enregistré
-        </Text>
-      ) : (
-        achats.map((a, i) => (
-          <View key={i} style={s.achatCard}>
-            <Text style={s.achatEmoji}>📕</Text>
-            <View style={{ flex: 1 }}>
-              <Text style={s.achatTitre}>{a.titre}</Text>
-              <Text style={s.achatAuteur}>{a.auteur}</Text>
-            </View>
-            <Text style={s.achatPts}>+{a.points_gagnes} pts</Text>
+          <View style={s.dsmCircle}>
+            <Text style={s.dsmCircleTxt}>DSM</Text>
           </View>
-        ))
+        </View>
+
+        <View style={s.soldeSep} />
+
+        <View style={s.gainsRow}>
+          <Text style={s.gainsLbl}>Gains sur les 6 derniers mois :</Text>
+          <Text style={s.gainsVal}>{gainsDH} DH</Text>
+        </View>
+        <Text style={s.dontTxt}>Dont</Text>
+        <View style={s.gainsRow}>
+          <Text style={s.gainsSubLbl}>Remises Immédiates :</Text>
+          <Text style={s.gainsVal}>0,00 DH</Text>
+        </View>
+        <View style={s.gainsRow}>
+          <Text style={s.gainsSubLbl}>Gains sur carte DSM :</Text>
+          <Text style={s.gainsVal}>{gainsDH} DH</Text>
+        </View>
+
+        <TouchableOpacity
+          style={s.historiqueBtn}
+          onPress={() => setShowHistorique(!showHistorique)}
+        >
+          <Text style={s.historiqueBtnTxt}>Mon historique</Text>
+          <Text style={s.historiqueIco}>🕐</Text>
+        </TouchableOpacity>
+      </View>
+
+      {/* Historique des achats */}
+      {showHistorique && (
+        <View style={{ paddingHorizontal: 16, paddingBottom: 8 }}>
+          {achats.length === 0 ? (
+            <Text
+              style={{ textAlign: "center", color: "#7AAAD0", padding: 16 }}
+            >
+              Aucun achat enregistré
+            </Text>
+          ) : (
+            achats.map((a, i) => (
+              <View key={i} style={s.achatCard}>
+                <Text style={s.achatEmoji}>📕</Text>
+                <View style={{ flex: 1 }}>
+                  <Text style={s.achatTitre}>{a.titre}</Text>
+                  <Text style={s.achatAuteur}>{a.auteur}</Text>
+                </View>
+                <Text style={s.achatPts}>+{a.points_gagnes} pts</Text>
+              </View>
+            ))
+          )}
+        </View>
       )}
+
+      {/* Code-barres */}
+      <View style={s.barcodeBloc}>
+        <BarcodeVisuel numCarte={client.num_carte} />
+      </View>
+
+      {/* Menu actions */}
+      {[
+        { icon: "🎁", label: "Avantages Carte DSM" },
+        { icon: "⭐", label: "Mes offres en cours" },
+        { icon: "🏆", label: "Mon niveau fidélité" },
+        { icon: "🤝", label: "Parrainer un proche" },
+      ].map((item, i) => (
+        <TouchableOpacity key={i} style={s.menuItem}>
+          <View style={s.menuIconWrap}>
+            <Text style={{ fontSize: 20 }}>{item.icon}</Text>
+          </View>
+          <Text style={s.menuLbl}>{item.label}</Text>
+          <Text style={s.menuArrow}>›</Text>
+        </TouchableOpacity>
+      ))}
+      <View style={{ height: 20 }} />
     </ScrollView>
   );
 }
@@ -1059,4 +1153,137 @@ const s = StyleSheet.create({
   filleulNom: { fontSize: 14, fontWeight: "bold", color: "#040D2A" },
   filleulNiveau: { fontSize: 11, color: "#7AAAD0", marginTop: 2 },
   filleulPts: { fontSize: 13, fontWeight: "bold", color: "#27AE60" },
+
+  // ── Onglet Accueil style Marjane ──
+  soldeBloc: {
+    margin: 16,
+    backgroundColor: "#0A2463",
+    borderRadius: 20,
+    padding: 22,
+  },
+  soldeTopRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    marginBottom: 16,
+  },
+  soldeLbl: {
+    fontSize: 13,
+    color: "rgba(255,255,255,0.8)",
+    marginBottom: 4,
+  },
+  soldeVal: {
+    fontSize: 32,
+    color: "#FFD080",
+    fontWeight: "bold",
+  },
+  soldeUnderline: {
+    height: 3,
+    width: 80,
+    backgroundColor: "#FFD080",
+    borderRadius: 2,
+    marginTop: 4,
+  },
+  dsmCircle: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    backgroundColor: "#FFD080",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  dsmCircleTxt: {
+    fontSize: 11,
+    fontWeight: "bold",
+    color: "#0A2463",
+    letterSpacing: 1,
+  },
+  soldeSep: {
+    height: 1,
+    backgroundColor: "rgba(255,255,255,0.15)",
+    marginBottom: 12,
+  },
+  gainsRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginBottom: 6,
+  },
+  gainsLbl: {
+    fontSize: 13,
+    color: "rgba(255,255,255,0.9)",
+    fontWeight: "bold",
+    flex: 1,
+  },
+  gainsVal: {
+    fontSize: 13,
+    color: "#fff",
+    fontWeight: "bold",
+  },
+  dontTxt: {
+    fontSize: 12,
+    color: "rgba(255,255,255,0.6)",
+    fontWeight: "bold",
+    marginBottom: 4,
+  },
+  gainsSubLbl: {
+    fontSize: 12,
+    color: "rgba(255,255,255,0.7)",
+    flex: 1,
+  },
+  historiqueBtn: {
+    backgroundColor: "#F5A623",
+    borderRadius: 30,
+    paddingVertical: 13,
+    paddingHorizontal: 24,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: 18,
+    gap: 8,
+  },
+  historiqueBtnTxt: {
+    fontSize: 15,
+    fontWeight: "bold",
+    color: "#1a1a00",
+  },
+  historiqueIco: { fontSize: 18 },
+  barcodeBloc: {
+    marginHorizontal: 16,
+    backgroundColor: "#EAF2FF",
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: "#C0D8F0",
+    overflow: "hidden",
+    marginBottom: 16,
+  },
+  menuItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#fff",
+    marginHorizontal: 16,
+    marginBottom: 10,
+    borderRadius: 14,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: "#E0EDFF",
+    gap: 14,
+  },
+  menuIconWrap: {
+    width: 42,
+    height: 42,
+    borderRadius: 12,
+    backgroundColor: "#EAF2FF",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  menuLbl: {
+    flex: 1,
+    fontSize: 15,
+    fontWeight: "bold",
+    color: "#0A2463",
+  },
+  menuArrow: {
+    fontSize: 24,
+    color: "#7AAAD0",
+    fontWeight: "bold",
+  },
 });
