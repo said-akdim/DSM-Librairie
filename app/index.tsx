@@ -1,5 +1,6 @@
 import { useState } from "react";
 import {
+  ActivityIndicator,
   ScrollView,
   StyleSheet,
   Text,
@@ -7,33 +8,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-
-const CLIENTS = [
-  {
-    id: 1,
-    prenom: "Sophie",
-    nom: "Martin",
-    email: "sophie@dsm.fr",
-    mdp: "1234",
-    niveau: "Gold",
-    points: 1340,
-    numCarte: "8821",
-    genre: "Policier",
-    auteur: "Fred Vargas",
-  },
-  {
-    id: 2,
-    prenom: "Lucas",
-    nom: "Bernard",
-    email: "lucas@dsm.fr",
-    mdp: "1234",
-    niveau: "Silver",
-    points: 680,
-    numCarte: "3347",
-    genre: "Sci-Fi",
-    auteur: "Isaac Asimov",
-  },
-];
+import { supabase } from "../supabase";
 
 const LIVRES = [
   {
@@ -87,11 +62,33 @@ function EcranConnexion({ onLogin }: { onLogin: (c: any) => void }) {
   const [email, setEmail] = useState("");
   const [mdp, setMdp] = useState("");
   const [erreur, setErreur] = useState("");
+  const [loading, setLoading] = useState(false);
 
-  const connexion = () => {
-    const c = CLIENTS.find((c) => c.email === email && c.mdp === mdp);
-    if (c) onLogin(c);
-    else setErreur("❌ Email ou mot de passe incorrect");
+  const connexion = async () => {
+    if (!email || !mdp) {
+      setErreur("❌ Remplissez tous les champs");
+      return;
+    }
+    setLoading(true);
+    setErreur("");
+    try {
+      // Connexion via Supabase
+      const { data, error } = await supabase
+        .from("clients")
+        .select("*")
+        .eq("email", email)
+        .eq("mdp", mdp)
+        .single();
+
+      if (error || !data) {
+        setErreur("❌ Email ou mot de passe incorrect");
+      } else {
+        onLogin(data);
+      }
+    } catch (e) {
+      setErreur("❌ Erreur de connexion");
+    }
+    setLoading(false);
   };
 
   return (
@@ -120,8 +117,16 @@ function EcranConnexion({ onLogin }: { onLogin: (c: any) => void }) {
           secureTextEntry
         />
         {erreur ? <Text style={s.erreur}>{erreur}</Text> : null}
-        <TouchableOpacity style={s.bouton} onPress={connexion}>
-          <Text style={s.boutonTxt}>Se connecter →</Text>
+        <TouchableOpacity
+          style={s.bouton}
+          onPress={connexion}
+          disabled={loading}
+        >
+          {loading ? (
+            <ActivityIndicator color="#fff" />
+          ) : (
+            <Text style={s.boutonTxt}>Se connecter →</Text>
+          )}
         </TouchableOpacity>
         <Text style={s.demo}>Demo : sophie@dsm.fr / 1234</Text>
       </View>
@@ -154,7 +159,7 @@ function CarteFidelite({ client }: { client: any }) {
         <View style={[s.barFill, { width: `${pct}%` as any }]} />
       </View>
       <View style={s.carteBottom}>
-        <Text style={s.numCarte}>•••• •••• •••• {client.numCarte}</Text>
+        <Text style={s.numCarte}>•••• •••• •••• {client.num_carte}</Text>
         <Text style={s.fidelite}>FIDÉLITÉ</Text>
       </View>
     </View>
@@ -165,6 +170,20 @@ function CarteFidelite({ client }: { client: any }) {
    ONGLET ACCUEIL
 ══════════════════════════════════════ */
 function OngletAccueil({ client }: { client: any }) {
+  const [achats, setAchats] = useState<any[]>([]);
+
+  useState(() => {
+    supabase
+      .from("achats")
+      .select("*")
+      .eq("client_id", client.id)
+      .order("date_achat", { ascending: false })
+      .limit(3)
+      .then(({ data }) => {
+        if (data) setAchats(data);
+      });
+  });
+
   return (
     <ScrollView style={s.ongletContainer}>
       <View style={{ padding: 16 }}>
@@ -172,7 +191,7 @@ function OngletAccueil({ client }: { client: any }) {
       </View>
       <View style={s.statsGrid}>
         {[
-          { icon: "📚", label: "Genre", val: client.genre },
+          { icon: "📚", label: "Genre", val: client.genre_favori },
           { icon: "⭐", label: "Niveau", val: client.niveau },
           { icon: "🎁", label: "Offres", val: "2 actives" },
           { icon: "🤝", label: "Filleuls", val: "1" },
@@ -185,32 +204,22 @@ function OngletAccueil({ client }: { client: any }) {
         ))}
       </View>
       <Text style={s.sectionTitre}>📖 Derniers achats</Text>
-      {[
-        {
-          titre: "L'Étranger",
-          auteur: "Albert Camus",
-          pts: 120,
-          date: "20 mars",
-        },
-        {
-          titre: "Millénium T.1",
-          auteur: "Stieg Larsson",
-          pts: 180,
-          date: "10 mars",
-        },
-        { titre: "Dune", auteur: "Frank Herbert", pts: 149, date: "28 fév." },
-      ].map((a, i) => (
-        <View key={i} style={s.achatCard}>
-          <Text style={s.achatEmoji}>📕</Text>
-          <View style={{ flex: 1 }}>
-            <Text style={s.achatTitre}>{a.titre}</Text>
-            <Text style={s.achatAuteur}>
-              {a.auteur} · {a.date}
-            </Text>
+      {achats.length === 0 ? (
+        <Text style={{ textAlign: "center", color: "#7AAAD0", padding: 20 }}>
+          Aucun achat enregistré
+        </Text>
+      ) : (
+        achats.map((a, i) => (
+          <View key={i} style={s.achatCard}>
+            <Text style={s.achatEmoji}>📕</Text>
+            <View style={{ flex: 1 }}>
+              <Text style={s.achatTitre}>{a.titre}</Text>
+              <Text style={s.achatAuteur}>{a.auteur}</Text>
+            </View>
+            <Text style={s.achatPts}>+{a.points_gagnes} pts</Text>
           </View>
-          <Text style={s.achatPts}>+{a.pts} pts</Text>
-        </View>
-      ))}
+        ))
+      )}
     </ScrollView>
   );
 }
@@ -218,18 +227,56 @@ function OngletAccueil({ client }: { client: any }) {
 /* ══════════════════════════════════════
    ONGLET BOUTIQUE
 ══════════════════════════════════════ */
-function OngletBoutique({ onAchat }: { onAchat: (pts: number) => void }) {
+function OngletBoutique({
+  client,
+  onAchat,
+}: {
+  client: any;
+  onAchat: (pts: number) => void;
+}) {
   const [panier, setPanier] = useState<any[]>([]);
   const [showPanier, setShowPanier] = useState(false);
+  const [loading, setLoading] = useState(false);
   const total = panier.reduce((a, b) => a + b.prix, 0);
   const pts = Math.round(total * 10);
 
-  const valider = () => {
+  const valider = async () => {
     if (panier.length === 0) return;
-    onAchat(pts);
-    setPanier([]);
-    setShowPanier(false);
-    alert(`✅ Commande validée ! +${pts} points fidélité !`);
+    setLoading(true);
+    try {
+      // Enregistrer les achats dans Supabase
+      const achatsData = panier.map((l) => ({
+        client_id: client.id,
+        titre: l.titre,
+        auteur: l.auteur,
+        prix: l.prix,
+        points_gagnes: Math.round(l.prix * 10),
+      }));
+      await supabase.from("achats").insert(achatsData);
+
+      // Mettre à jour les points du client
+      const newPoints = client.points + pts;
+      const newNiveau =
+        newPoints >= 2000
+          ? "Platine"
+          : newPoints >= 1000
+            ? "Gold"
+            : newPoints >= 500
+              ? "Silver"
+              : "Bronze";
+      await supabase
+        .from("clients")
+        .update({ points: newPoints, niveau: newNiveau })
+        .eq("id", client.id);
+
+      onAchat(pts);
+      setPanier([]);
+      setShowPanier(false);
+      alert(`✅ Commande validée ! +${pts} points fidélité !`);
+    } catch (e) {
+      alert("❌ Erreur lors de la commande");
+    }
+    setLoading(false);
   };
 
   return (
@@ -278,8 +325,16 @@ function OngletBoutique({ onAchat }: { onAchat: (pts: number) => void }) {
                   +{pts} pts
                 </Text>
               </View>
-              <TouchableOpacity style={s.validerBtn} onPress={valider}>
-                <Text style={s.validerTxt}>✅ Valider la commande</Text>
+              <TouchableOpacity
+                style={s.validerBtn}
+                onPress={valider}
+                disabled={loading}
+              >
+                {loading ? (
+                  <ActivityIndicator color="#fff" />
+                ) : (
+                  <Text style={s.validerTxt}>✅ Valider la commande</Text>
+                )}
               </TouchableOpacity>
             </>
           )}
@@ -312,44 +367,32 @@ function OngletBoutique({ onAchat }: { onAchat: (pts: number) => void }) {
    ONGLET NOTIFICATIONS
 ══════════════════════════════════════ */
 function OngletNotifs({ client }: { client: any }) {
-  const [notifs, setNotifs] = useState([
-    {
-      id: 1,
-      icon: "📚",
-      titre: "Nouveau livre !",
-      msg: '"Pars vite" — Fred Vargas vient d\'arriver.',
-      temps: "2 min",
-      lu: false,
-    },
-    {
-      id: 2,
-      icon: "🎁",
-      titre: "Récompense !",
-      msg: "-15% sur votre prochain achat policier.",
-      temps: "1h",
-      lu: false,
-    },
-    {
-      id: 3,
-      icon: "✍️",
-      titre: "Dédicace — Fred Vargas",
-      msg: "Samedi 5 avril à 14h à la librairie DSM.",
-      temps: "Hier",
-      lu: true,
-    },
-    {
-      id: 4,
-      icon: "🏆",
-      titre: "Nouveau palier !",
-      msg: "Encore 660 DH pour atteindre Platine.",
-      temps: "2j",
-      lu: true,
-    },
-  ]);
+  const [notifs, setNotifs] = useState<any[]>([]);
 
-  const lireTout = () => setNotifs((n) => n.map((x) => ({ ...x, lu: true })));
-  const lire = (id: number) =>
+  useState(() => {
+    supabase
+      .from("notifications")
+      .select("*")
+      .eq("client_id", client.id)
+      .order("created_at", { ascending: false })
+      .then(({ data }) => {
+        if (data) setNotifs(data);
+      });
+  });
+
+  const lire = async (id: number) => {
+    await supabase.from("notifications").update({ lu: true }).eq("id", id);
     setNotifs((n) => n.map((x) => (x.id === id ? { ...x, lu: true } : x)));
+  };
+
+  const lireTout = async () => {
+    await supabase
+      .from("notifications")
+      .update({ lu: true })
+      .eq("client_id", client.id);
+    setNotifs((n) => n.map((x) => ({ ...x, lu: true })));
+  };
+
   const nonLus = notifs.filter((n) => !n.lu).length;
 
   return (
@@ -363,23 +406,28 @@ function OngletNotifs({ client }: { client: any }) {
         )}
       </View>
       <View style={{ padding: 12 }}>
-        {notifs.map((n) => (
-          <TouchableOpacity
-            key={n.id}
-            onPress={() => lire(n.id)}
-            style={[s.notifCard, !n.lu && s.notifCardNonLu]}
-          >
-            <Text style={s.notifIcon}>{n.icon}</Text>
-            <View style={{ flex: 1 }}>
-              <Text style={[s.notifTitre, !n.lu && { color: "#040D2A" }]}>
-                {n.titre}
-              </Text>
-              <Text style={s.notifMsg}>{n.msg}</Text>
-              <Text style={s.notifTemps}>Il y a {n.temps}</Text>
-            </View>
-            {!n.lu && <View style={s.notifDot} />}
-          </TouchableOpacity>
-        ))}
+        {notifs.length === 0 ? (
+          <Text style={{ textAlign: "center", color: "#7AAAD0", padding: 30 }}>
+            Aucune notification
+          </Text>
+        ) : (
+          notifs.map((n) => (
+            <TouchableOpacity
+              key={n.id}
+              onPress={() => lire(n.id)}
+              style={[s.notifCard, !n.lu && s.notifCardNonLu]}
+            >
+              <Text style={s.notifIcon}>🔔</Text>
+              <View style={{ flex: 1 }}>
+                <Text style={[s.notifTitre, !n.lu && { color: "#040D2A" }]}>
+                  {n.titre}
+                </Text>
+                <Text style={s.notifMsg}>{n.message}</Text>
+              </View>
+              {!n.lu && <View style={s.notifDot} />}
+            </TouchableOpacity>
+          ))
+        )}
       </View>
     </ScrollView>
   );
@@ -390,7 +438,6 @@ function OngletNotifs({ client }: { client: any }) {
 ══════════════════════════════════════ */
 function OngletParrain({ client }: { client: any }) {
   const [copie, setCopie] = useState(false);
-
   return (
     <ScrollView style={s.ongletContainer}>
       <View style={s.parrainHeader}>
@@ -402,7 +449,7 @@ function OngletParrain({ client }: { client: any }) {
       <View style={{ padding: 16 }}>
         <View style={s.codeBox}>
           <Text style={s.codeLabel}>MON CODE PARRAIN</Text>
-          <Text style={s.codeVal}>{client.numCarte}</Text>
+          <Text style={s.codeVal}>{client.num_carte}</Text>
           <TouchableOpacity
             style={s.copierBtn}
             onPress={() => {
@@ -437,19 +484,6 @@ function OngletParrain({ client }: { client: any }) {
             </View>
           </View>
         ))}
-        <Text style={s.sectionTitre}>👥 Mes filleuls (1)</Text>
-        <View style={s.filleulCard}>
-          <View style={s.filleulAvatar}>
-            <Text style={{ color: "#fff", fontWeight: "bold", fontSize: 14 }}>
-              ED
-            </Text>
-          </View>
-          <View style={{ flex: 1 }}>
-            <Text style={s.filleulNom}>Emma Dupont</Text>
-            <Text style={s.filleulNiveau}>Niveau Bronze</Text>
-          </View>
-          <Text style={s.filleulPts}>+200 pts</Text>
-        </View>
       </View>
     </ScrollView>
   );
@@ -483,10 +517,11 @@ function OngletProfil({
       </View>
       <View style={{ padding: 16 }}>
         {[
-          { icon: "📚", label: "Genre favori", val: client.genre },
-          { icon: "✍️", label: "Auteur favori", val: client.auteur },
-          { icon: "💳", label: "N° carte", val: `•••• ${client.numCarte}` },
+          { icon: "📚", label: "Genre favori", val: client.genre_favori },
+          { icon: "✍️", label: "Auteur favori", val: client.auteur_favori },
+          { icon: "💳", label: "N° carte", val: `•••• ${client.num_carte}` },
           { icon: "🏆", label: "Niveau", val: client.niveau },
+          { icon: "⭐", label: "Points", val: `${client.points} pts` },
         ].map((info, i) => (
           <View key={i} style={s.profilItem}>
             <Text style={s.profilIcon}>{info.icon}</Text>
@@ -519,7 +554,6 @@ export default function App() {
 
   return (
     <View style={{ flex: 1, backgroundColor: "#F4F8FF" }}>
-      {/* Header */}
       <View style={s.header}>
         <View style={s.headerLogo}>
           <Text style={s.headerLogoTxt}>📚</Text>
@@ -534,16 +568,16 @@ export default function App() {
         </View>
       </View>
 
-      {/* Contenu */}
       {onglet === "accueil" && <OngletAccueil client={client} />}
-      {onglet === "boutique" && <OngletBoutique onAchat={addPoints} />}
+      {onglet === "boutique" && (
+        <OngletBoutique client={client} onAchat={addPoints} />
+      )}
       {onglet === "notifs" && <OngletNotifs client={client} />}
       {onglet === "parrain" && <OngletParrain client={client} />}
       {onglet === "profil" && (
         <OngletProfil client={client} onDeconnexion={() => setClient(null)} />
       )}
 
-      {/* BARRE DE NAVIGATION */}
       <View style={s.navBar}>
         {[
           { id: "accueil", icon: "🏠", label: "Accueil" },
