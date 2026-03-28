@@ -1,4 +1,5 @@
-import { useState } from "react";
+import * as Notifications from "expo-notifications";
+import { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   ScrollView,
@@ -8,6 +9,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { envoyerNotifClient, envoyerNotifLocale } from "../notifications";
 import { supabase } from "../supabase";
 
 const LIVRES = [
@@ -55,9 +57,6 @@ const LIVRES = [
   },
 ];
 
-/* ══════════════════════════════════════
-   ÉCRAN CONNEXION
-══════════════════════════════════════ */
 function EcranConnexion({ onLogin }: { onLogin: (c: any) => void }) {
   const [email, setEmail] = useState("");
   const [mdp, setMdp] = useState("");
@@ -72,19 +71,14 @@ function EcranConnexion({ onLogin }: { onLogin: (c: any) => void }) {
     setLoading(true);
     setErreur("");
     try {
-      // Connexion via Supabase
       const { data, error } = await supabase
         .from("clients")
         .select("*")
         .eq("email", email)
         .eq("mdp", mdp)
         .single();
-
-      if (error || !data) {
-        setErreur("❌ Email ou mot de passe incorrect");
-      } else {
-        onLogin(data);
-      }
+      if (error || !data) setErreur("❌ Email ou mot de passe incorrect");
+      else onLogin(data);
     } catch (e) {
       setErreur("❌ Erreur de connexion");
     }
@@ -134,9 +128,6 @@ function EcranConnexion({ onLogin }: { onLogin: (c: any) => void }) {
   );
 }
 
-/* ══════════════════════════════════════
-   CARTE FIDÉLITÉ
-══════════════════════════════════════ */
 function CarteFidelite({ client }: { client: any }) {
   const pct = Math.min((client.points / 2000) * 100, 100);
   return (
@@ -166,13 +157,10 @@ function CarteFidelite({ client }: { client: any }) {
   );
 }
 
-/* ══════════════════════════════════════
-   ONGLET ACCUEIL
-══════════════════════════════════════ */
 function OngletAccueil({ client }: { client: any }) {
   const [achats, setAchats] = useState<any[]>([]);
 
-  useState(() => {
+  useEffect(() => {
     supabase
       .from("achats")
       .select("*")
@@ -182,7 +170,7 @@ function OngletAccueil({ client }: { client: any }) {
       .then(({ data }) => {
         if (data) setAchats(data);
       });
-  });
+  }, [client.id]);
 
   return (
     <ScrollView style={s.ongletContainer}>
@@ -224,9 +212,6 @@ function OngletAccueil({ client }: { client: any }) {
   );
 }
 
-/* ══════════════════════════════════════
-   ONGLET BOUTIQUE
-══════════════════════════════════════ */
 function OngletBoutique({
   client,
   onAchat,
@@ -244,17 +229,15 @@ function OngletBoutique({
     if (panier.length === 0) return;
     setLoading(true);
     try {
-      // Enregistrer les achats dans Supabase
-      const achatsData = panier.map((l) => ({
-        client_id: client.id,
-        titre: l.titre,
-        auteur: l.auteur,
-        prix: l.prix,
-        points_gagnes: Math.round(l.prix * 10),
-      }));
-      await supabase.from("achats").insert(achatsData);
-
-      // Mettre à jour les points du client
+      await supabase.from("achats").insert(
+        panier.map((l) => ({
+          client_id: client.id,
+          titre: l.titre,
+          auteur: l.auteur,
+          prix: l.prix,
+          points_gagnes: Math.round(l.prix * 10),
+        })),
+      );
       const newPoints = client.points + pts;
       const newNiveau =
         newPoints >= 2000
@@ -268,7 +251,6 @@ function OngletBoutique({
         .from("clients")
         .update({ points: newPoints, niveau: newNiveau })
         .eq("id", client.id);
-
       onAchat(pts);
       setPanier([]);
       setShowPanier(false);
@@ -363,13 +345,10 @@ function OngletBoutique({
   );
 }
 
-/* ══════════════════════════════════════
-   ONGLET NOTIFICATIONS
-══════════════════════════════════════ */
 function OngletNotifs({ client }: { client: any }) {
   const [notifs, setNotifs] = useState<any[]>([]);
 
-  useState(() => {
+  useEffect(() => {
     supabase
       .from("notifications")
       .select("*")
@@ -378,7 +357,7 @@ function OngletNotifs({ client }: { client: any }) {
       .then(({ data }) => {
         if (data) setNotifs(data);
       });
-  });
+  }, [client.id]);
 
   const lire = async (id: number) => {
     await supabase.from("notifications").update({ lu: true }).eq("id", id);
@@ -433,9 +412,6 @@ function OngletNotifs({ client }: { client: any }) {
   );
 }
 
-/* ══════════════════════════════════════
-   ONGLET PARRAINAGE
-══════════════════════════════════════ */
 function OngletParrain({ client }: { client: any }) {
   const [copie, setCopie] = useState(false);
   return (
@@ -489,9 +465,6 @@ function OngletParrain({ client }: { client: any }) {
   );
 }
 
-/* ══════════════════════════════════════
-   ONGLET PROFIL
-══════════════════════════════════════ */
 function OngletProfil({
   client,
   onDeconnexion,
@@ -539,15 +512,52 @@ function OngletProfil({
   );
 }
 
-/* ══════════════════════════════════════
-   APP PRINCIPALE
-══════════════════════════════════════ */
 export default function App() {
   const [client, setClient] = useState<any>(null);
   const [onglet, setOnglet] = useState("accueil");
+  const notifListener = useRef<any>(null);
+  const responseListener = useRef<any>(null);
+
+  useEffect(() => {
+    if (!client) return;
+    try {
+      notifListener.current = Notifications.addNotificationReceivedListener(
+        (notif) => console.log("Notification reçue:", notif),
+      );
+      responseListener.current =
+        Notifications.addNotificationResponseReceivedListener(() =>
+          setOnglet("notifs"),
+        );
+    } catch (e) {
+      console.log("Notifications non disponibles sur web");
+    }
+    return () => {
+      try {
+        if (notifListener.current)
+          Notifications.removeNotificationSubscription(notifListener.current);
+        if (responseListener.current)
+          Notifications.removeNotificationSubscription(
+            responseListener.current,
+          );
+      } catch (e) {}
+    };
+  }, [client?.id]);
 
   const addPoints = (pts: number) => {
     setClient((c: any) => ({ ...c, points: c.points + pts }));
+    try {
+      envoyerNotifLocale(
+        "🎉 Points ajoutés !",
+        `+${pts} points fidélité ajoutés à votre carte DSM !`,
+      );
+    } catch (e) {}
+    if (client) {
+      envoyerNotifClient(
+        client.id,
+        "🎉 Points ajoutés !",
+        `+${pts} points fidélité ajoutés à votre carte DSM !`,
+      );
+    }
   };
 
   if (!client) return <EcranConnexion onLogin={setClient} />;
@@ -603,9 +613,6 @@ export default function App() {
   );
 }
 
-/* ══════════════════════════════════════
-   STYLES
-══════════════════════════════════════ */
 const s = StyleSheet.create({
   loginContainer: {
     flex: 1,
