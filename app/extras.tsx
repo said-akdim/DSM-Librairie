@@ -463,8 +463,13 @@ export function EcranValidationCommande({
     if (!modePaiement) { Alert.alert("❌", "Choisissez un moyen de paiement"); return; }
     if (!adresseLivraison) { Alert.alert("❌", "Ajoutez une adresse de livraison"); return; }
     if (modePaiement === "espece" && (!montantDonne || parseFloat(montantDonne) < total)) {
-      Alert.alert("❌", `Le montant doit être au moins ${total.toFixed(2)} DH`); return;
-    }
+  Alert.alert("❌", `Le montant doit être au moins ${total.toFixed(2)} DH`); return;
+}
+if (modePaiement === "virement") {
+  Alert.alert("🏦 Virement bancaire", 
+    `RIB DSM Librairie :\nBanque : Attijariwafa Bank\nIBAN : MA64 0111 2345 6789 0123 4567\nMontant : ${total.toFixed(2)} DH\n\nMerci d'indiquer votre N° de commande en référence.`
+  );
+}
     setLoading(true);
     try {
       const trackingCode = `DSM-${Date.now().toString().slice(-6)}`;
@@ -571,9 +576,10 @@ export function EcranValidationCommande({
         <Text style={es.sectionTitre}>💳 Moyen de paiement</Text>
         <View style={{ flexDirection:"row", gap:10, marginHorizontal:16, marginBottom:16 }}>
           {[
-            { id:"espece", label:"💵 Espèces", desc:"Paiement à la livraison" },
-            { id:"tpe", label:"💳 TPE", desc:"Carte bancaire" },
-          ].map(p => (
+  { id:"espece",   label:"💵 Espèces",  desc:"Paiement à la livraison" },
+  { id:"tpe",     label:"💳 TPE",       desc:"Carte bancaire" },
+  { id:"virement",label:"🏦 Virement",  desc:"Virement bancaire" },
+].map(p => (
             <TouchableOpacity key={p.id} onPress={() => setModePaiement(p.id as any)}
               style={[es.paiementBtn, modePaiement===p.id && es.paiementBtnActif]}>
               <Text style={[es.paiementLbl, modePaiement===p.id && { color:"#fff" }]}>{p.label}</Text>
@@ -588,7 +594,8 @@ export function EcranValidationCommande({
             <Text style={es.especeTitre}>💵 Combien vous donnez au livreur ?</Text>
             <Text style={es.especeSous}>Le livreur préparera la monnaie exacte</Text>
             <View style={{ flexDirection:"row", gap:10, flexWrap:"wrap", marginBottom:12 }}>
-              {[Math.ceil(total/10)*10, Math.ceil(total/50)*50, Math.ceil(total/100)*100, Math.ceil(total/200)*200].filter((v,i,a)=>a.indexOf(v)===i).map(val => (
+              {[5, 10, 20, Math.ceil(total/50)*50, Math.ceil(total/100)*100, Math.ceil(total/200)*200].filter((v,i,a)=>a.indexOf(v)===i)
+              .map(val =>(
                 <TouchableOpacity key={val} onPress={() => setMontantDonne(val.toString())}
                   style={[es.montantBtn, montantDonne===val.toString() && es.montantBtnActif]}>
                   <Text style={[es.montantBtnTxt, montantDonne===val.toString() && { color:"#fff" }]}>{val} DH</Text>
@@ -606,6 +613,28 @@ export function EcranValidationCommande({
             )}
           </View>
         )}
+        {modePaiement === "virement" && (
+  <View style={[es.especeBox, { borderColor:"#1A6FFF", backgroundColor:"#EEF5FF" }]}>
+    <Text style={[es.especeTitre, { color:"#1A6FFF" }]}>🏦 Coordonnées bancaires DSM</Text>
+    <Text style={es.especeSous}>Effectuez le virement avant la livraison</Text>
+    {[
+      {label:"Banque",  val:"Attijariwafa Bank"},
+      {label:"Titulaire", val:"DSM Librairie SARL"},
+      {label:"RIB",     val:"0111 2345 6789 0123"},
+      {label:"Montant", val:`${(Math.max(0, (panier.reduce((a,b)=>a+b.prix,0)) + (fraisLivraisonGratuit?0:fraisActuels) - remise)).toFixed(2)} DH`},
+    ].map((item, i) => (
+      <View key={i} style={{ flexDirection:"row", justifyContent:"space-between", paddingVertical:8, borderBottomWidth:1, borderBottomColor:"#E0EDFF" }}>
+        <Text style={{ fontSize:13, color:"#8AAABF" }}>{item.label}</Text>
+        <Text style={{ fontSize:13, fontWeight:"bold", color:"#05102A" }}>{item.val}</Text>
+      </View>
+    ))}
+    <View style={{ backgroundColor:"#1A6FFF", borderRadius:10, padding:10, marginTop:12, alignItems:"center" }}>
+      <Text style={{ color:"#fff", fontSize:12, fontWeight:"bold" }}>
+        📋 Référence : CMD-{client.num_carte}-{Date.now().toString().slice(-4)}
+      </Text>
+    </View>
+  </View>
+)}
 
         {/* Récapitulatif financier */}
         <View style={es.recapBox}>
