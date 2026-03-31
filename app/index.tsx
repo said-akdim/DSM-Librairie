@@ -16,6 +16,11 @@ import {
 import QRCode from "react-native-qrcode-svg";
 import { supabase } from "../supabase";
 import Caisse from "./caisse";
+import {
+  OngletCoupsCoeur, OngletBonsReduction, OngletSuiviCommandes,
+  OngletListesScolaires, OngletPromotions, OngletMonCompte,
+  EcranValidationCommande
+} from "./extras";
 
 const LIVRES = [
   {
@@ -624,9 +629,9 @@ function DetailLivre({
               </Text>
             </View>
           </View>
-          <TouchableOpacity style={s.detailAcheterBtn} onPress={onAchat}>
-            <Text style={s.detailAcheterTxt}>🛍️ Ajouter au panier</Text>
-          </TouchableOpacity>
+          <TouchableOpacity style={s.validerBtn} onPress={() => onValider(panier)}>
+  <Text style={s.validerTxt}>🛍️ Passer la commande</Text>
+</TouchableOpacity>
           <TouchableOpacity
             style={s.detailWhatsappBtn}
             onPress={() =>
@@ -853,11 +858,11 @@ function OngletAccueil({
    ONGLET BOUTIQUE
 ══════════════════════════════════════ */
 function OngletBoutique({
-  client,
-  onAchat,
+  client, onAchat, onValider,
 }: {
   client: any;
   onAchat: (pts: number, livres: any[], total: number) => void;
+  onValider: (panier: any[]) => void;
 }) {
   const [panier, setPanier] = useState<any[]>([]);
   const [showPanier, setShowPanier] = useState(false);
@@ -1367,6 +1372,8 @@ export default function App() {
   const [onglet, setOnglet] = useState("accueil");
   const notifListener = useRef<any>(null);
   const responseListener = useRef<any>(null);
+  const [showValidation, setShowValidation] = useState(false);
+  const [panierValidation, setPanierValidation] = useState<any[]>([]);
 
   useEffect(() => {
     if (!client) return;
@@ -1425,25 +1432,39 @@ export default function App() {
     { id: "boutique", icon: "🛍️", label: "Boutique" },
     { id: "offres", icon: "🎁", label: "Offres" },
     { id: "classement", icon: "🏆", label: "Top" },
+    {id:"plus",      icon:"⊕",  label:"Plus"},
     { id: "caisse", icon: "🏪", label: "Caisse" },
     { id: "profil", icon: "👤", label: "Profil" },
   ];
 
-  return (
-    <View style={{ flex: 1, backgroundColor: "#F5F7FF" }}>
-      <View style={s.header}>
-        <View style={s.headerLogo}>
-          <Text style={s.headerLogoTxt}>📚</Text>
+return (
+    <View style={{ flex:1, backgroundColor:"#F5F7FF" }}>
+
+      {/* Écran validation commande — par dessus tout */}
+      {showValidation && (
+        <View style={{ position:"absolute", top:0, left:0, right:0, bottom:0, zIndex:999 }}>
+          <EcranValidationCommande
+            panier={panierValidation}
+            client={client}
+            fraisLivraison={15}
+            onConfirmer={(cmd: any) => {
+              setShowValidation(false);
+              setClient((c: any) => ({...c, points: c.points + (cmd.pts||0)}));
+              Alert.alert("🎉 Commande confirmée !", `+${cmd.pts||0} pts fidélité !`);
+            }}
+            onAnnuler={() => setShowValidation(false)}
+          />
         </View>
+      )}
+
+      <View style={s.header}>
+        <View style={s.headerLogo}><Text style={s.headerLogoTxt}>📚</Text></View>
         <View>
           <Text style={s.headerDSM}>DSM</Text>
           <Text style={s.headerSous}>LIBRAIRIE</Text>
         </View>
-        <View style={{ flex: 1 }} />
-        <TouchableOpacity
-          onPress={() => setOnglet("notifs")}
-          style={{ marginRight: 8 }}
-        >
+        <View style={{ flex:1 }}/>
+        <TouchableOpacity onPress={() => setOnglet("notifs")} style={{ marginRight:8 }}>
           <Text style={s.headerPtsTxt}>🔔</Text>
         </TouchableOpacity>
         <View style={s.headerPts}>
@@ -1451,32 +1472,59 @@ export default function App() {
         </View>
       </View>
 
-      {onglet === "accueil" && (
-        <OngletAccueil client={client} onAnniversaire={handleAnniversaire} />
+      {onglet==="accueil"    && <OngletAccueil client={client} onAnniversaire={handleAnniversaire}/>}
+      {onglet==="boutique"   && (
+        <OngletBoutique client={client} onAchat={addPoints}
+          onValider={(panier: any[]) => { setPanierValidation(panier); setShowValidation(true); }}/>
       )}
-      {onglet === "boutique" && (
-        <OngletBoutique client={client} onAchat={addPoints} />
+      {onglet==="offres"     && <OngletOffres client={client}/>}
+      {onglet==="classement" && <OngletClassement client={client}/>}
+      {onglet==="notifs"     && <OngletNotifs client={client}/>}
+      {onglet==="profil"     && <OngletProfil client={client} onDeconnexion={() => setClient(null)}/>}
+      {onglet==="caisse"     && <Caisse/>}
+      {onglet==="coups_coeur" && <OngletCoupsCoeur client={client} livres={LIVRES} onAjouterPanier={(l) => {}}/>}
+      {onglet==="bons"        && <OngletBonsReduction client={client}/>}
+      {onglet==="commandes"   && <OngletSuiviCommandes client={client}/>}
+      {onglet==="scolaires"   && <OngletListesScolaires onAjouterPanier={(livres) => {}}/>}
+      {onglet==="promotions"  && <OngletPromotions client={client}/>}
+      {onglet==="mon_compte"  && <OngletMonCompte client={client} onUpdate={setClient}/>}
+
+      {onglet==="plus" && (
+        <ScrollView style={{ flex:1, backgroundColor:"#F5F7FF" }}>
+          <View style={{ backgroundColor:"#05102A", padding:20, paddingTop:14, marginBottom:16 }}>
+            <Text style={{ fontSize:22, color:"#FFD080", fontWeight:"bold" }}>⊕ Plus de services</Text>
+            <Text style={{ fontSize:12, color:"rgba(255,255,255,0.45)", marginTop:4 }}>Tous vos outils DSM</Text>
+          </View>
+          {[
+            {id:"coups_coeur", icon:"❤️",  label:"Coups de cœur",      desc:"Vos livres favoris sauvegardés"},
+            {id:"bons",        icon:"🎟️", label:"Bons de réduction",   desc:"Vos codes promo disponibles"},
+            {id:"commandes",   icon:"📦",  label:"Suivi des commandes", desc:"Statut et expédition en temps réel"},
+            {id:"scolaires",   icon:"🎒",  label:"Listes scolaires",    desc:"Rentrée 2025-2026"},
+            {id:"promotions",  icon:"🔥",  label:"Promotions en cours", desc:"Offres exclusives du moment"},
+            {id:"mon_compte",  icon:"👤",  label:"Mon compte",          desc:"Téléphone, adresse, livraison express"},
+          ].map((item, i) => (
+            <TouchableOpacity key={i} onPress={() => setOnglet(item.id)}
+              style={{ flexDirection:"row", alignItems:"center", backgroundColor:"#fff", marginHorizontal:16, marginBottom:10, borderRadius:18, padding:18, shadowColor:"#0A2463", shadowOffset:{width:0,height:2}, shadowOpacity:0.05, shadowRadius:8, elevation:2, gap:14 }}>
+              <View style={{ width:48, height:48, borderRadius:14, backgroundColor:"#EAF2FF", alignItems:"center", justifyContent:"center" }}>
+                <Text style={{ fontSize:24 }}>{item.icon}</Text>
+              </View>
+              <View style={{ flex:1 }}>
+                <Text style={{ fontSize:15, fontWeight:"bold", color:"#05102A" }}>{item.label}</Text>
+                <Text style={{ fontSize:12, color:"#8AAABF", marginTop:2 }}>{item.desc}</Text>
+              </View>
+              <Text style={{ fontSize:22, color:"#8AAABF" }}>›</Text>
+            </TouchableOpacity>
+          ))}
+          <View style={{ height:20 }}/>
+        </ScrollView>
       )}
-      {onglet === "offres" && <OngletOffres client={client} />}
-      {onglet === "classement" && <OngletClassement client={client} />}
-      {onglet === "notifs" && <OngletNotifs client={client} />}
-      {onglet === "profil" && (
-        <OngletProfil client={client} onDeconnexion={() => setClient(null)} />
-      )}
-      {onglet === "caisse" && <Caisse />}
 
       <View style={s.navBar}>
-        {tabs.map((tab) => (
-          <TouchableOpacity
-            key={tab.id}
-            style={s.navBtn}
-            onPress={() => setOnglet(tab.id)}
-          >
+        {tabs.map(tab => (
+          <TouchableOpacity key={tab.id} style={s.navBtn} onPress={() => setOnglet(tab.id)}>
             <Text style={s.navIcon}>{tab.icon}</Text>
-            <Text style={[s.navLabel, onglet === tab.id && s.navLabelActif]}>
-              {tab.label}
-            </Text>
-            {onglet === tab.id && <View style={s.navIndicator} />}
+            <Text style={[s.navLabel, onglet===tab.id && s.navLabelActif]}>{tab.label}</Text>
+            {onglet===tab.id && <View style={s.navIndicator}/>}
           </TouchableOpacity>
         ))}
       </View>
