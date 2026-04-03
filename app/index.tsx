@@ -1,3 +1,4 @@
+import NetInfo from "@react-native-community/netinfo";
 import * as MailComposer from "expo-mail-composer";
 import * as Notifications from "expo-notifications";
 import { useEffect, useRef, useState } from "react";
@@ -5,6 +6,7 @@ import {
   ActivityIndicator,
   Alert,
   Linking,
+  Modal,
   Platform,
   ScrollView,
   StyleSheet,
@@ -665,14 +667,25 @@ function OngletAccueil({
   const [achats, setAchats] = useState<any[]>([]);
   const [showHistorique, setShowHistorique] = useState(false);
   const [showTicket, setShowTicket] = useState(false);
+  const [filtreMois, setFiltreMois] = useState(0);
+  const [estEnLigne, setEstEnLigne] = useState(true);
 
+  // Vérification connexion réseau
+  useEffect(() => {
+    const unsub = NetInfo.addEventListener((state) => {
+      setEstEnLigne(state.isConnected ?? true);
+    });
+    return () => unsub();
+  }, []);
+
+  // Chargement achats + vérif anniversaire
   useEffect(() => {
     supabase
       .from("achats")
       .select("*")
       .eq("client_id", client.id)
       .order("date_achat", { ascending: false })
-      .limit(5)
+      .limit(20)
       .then(({ data }) => {
         if (data) setAchats(data);
       });
@@ -687,6 +700,27 @@ function OngletAccueil({
 
   return (
     <ScrollView style={s.ongletContainer} showsVerticalScrollIndicator={false}>
+      {/* Bannière hors ligne */}
+      {!estEnLigne && (
+        <View
+          style={{
+            backgroundColor: "#FF6B35",
+            padding: 10,
+            flexDirection: "row",
+            alignItems: "center",
+            justifyContent: "center",
+            borderRadius: 10,
+            margin: 12,
+          }}
+        >
+          <Text style={{ fontSize: 16, marginRight: 8 }}>📵</Text>
+          <Text style={{ color: "#fff", fontWeight: "bold", fontSize: 13 }}>
+            Mode hors ligne — Carte disponible en lecture seule
+          </Text>
+        </View>
+      )}
+
+      {/* Bannière anniversaire */}
       {client.date_naissance && isAnniversaire(client.date_naissance) && (
         <View style={s.anniversaireBanner}>
           <Text style={s.anniversaireEmoji}>🎂</Text>
@@ -700,6 +734,8 @@ function OngletAccueil({
           </View>
         </View>
       )}
+
+      {/* Bloc solde */}
       <View style={s.soldeBloc}>
         <View style={s.soldeTopRow}>
           <View style={{ flex: 1 }}>
@@ -727,36 +763,135 @@ function OngletAccueil({
         </View>
         <TouchableOpacity
           style={s.historiqueBtn}
-          onPress={() => setShowHistorique(!showHistorique)}
+          onPress={() => setShowHistorique(true)}
         >
           <Text style={s.historiqueBtnTxt}>Mon historique</Text>
           <Text style={s.historiqueIco}>🕐</Text>
         </TouchableOpacity>
       </View>
 
-      {showHistorique && (
-        <View style={{ paddingHorizontal: 16, paddingBottom: 8 }}>
-          {achats.length === 0 ? (
-            <Text
-              style={{ textAlign: "center", color: "#7AAAD0", padding: 16 }}
-            >
-              Aucun achat enregistré
-            </Text>
-          ) : (
-            achats.map((a, i) => (
-              <View key={i} style={s.achatCard}>
-                <Text style={s.achatEmoji}>📕</Text>
-                <View style={{ flex: 1 }}>
-                  <Text style={s.achatTitre}>{a.titre}</Text>
-                  <Text style={s.achatAuteur}>{a.auteur}</Text>
-                </View>
-                <Text style={s.achatPts}>+{a.points_gagnes} pts</Text>
-              </View>
-            ))
-          )}
-        </View>
-      )}
+      {/* Barre de progression niveau */}
+      {(() => {
+        const niveaux = [
+          { nom: "Bronze", min: 0, max: 500, couleur: "#CD7F32", emoji: "🥉" },
+          {
+            nom: "Silver",
+            min: 500,
+            max: 1000,
+            couleur: "#C0C0C0",
+            emoji: "🥈",
+          },
+          {
+            nom: "Gold",
+            min: 1000,
+            max: 2000,
+            couleur: "#FFD080",
+            emoji: "🥇",
+          },
+          {
+            nom: "Platine",
+            min: 2000,
+            max: 2000,
+            couleur: "#E5E4E2",
+            emoji: "💎",
+          },
+        ];
+        const pts = client.points || 0;
+        const actuel = niveaux.find((n) => pts < n.max) || niveaux[3];
+        const suivant = niveaux[niveaux.indexOf(actuel) + 1];
+        const progress =
+          actuel.nom === "Platine"
+            ? 1
+            : (pts - actuel.min) / (actuel.max - actuel.min);
+        const manquants = suivant ? actuel.max - pts : 0;
 
+        return (
+          <View
+            style={{
+              marginHorizontal: 16,
+              marginBottom: 16,
+              backgroundColor: "#05102A",
+              borderRadius: 16,
+              padding: 14,
+            }}
+          >
+            <View
+              style={{
+                flexDirection: "row",
+                justifyContent: "space-between",
+                marginBottom: 10,
+              }}
+            >
+              {niveaux.map((n, i) => (
+                <View
+                  key={i}
+                  style={{
+                    alignItems: "center",
+                    opacity: pts >= n.min ? 1 : 0.3,
+                  }}
+                >
+                  <Text style={{ fontSize: 18 }}>{n.emoji}</Text>
+                  <Text
+                    style={{
+                      fontSize: 9,
+                      color: pts >= n.min ? n.couleur : "rgba(255,255,255,0.3)",
+                      fontWeight: "bold",
+                      marginTop: 2,
+                    }}
+                  >
+                    {n.nom}
+                  </Text>
+                </View>
+              ))}
+            </View>
+            <View
+              style={{
+                height: 10,
+                backgroundColor: "rgba(255,255,255,0.1)",
+                borderRadius: 10,
+                overflow: "hidden",
+              }}
+            >
+              <View
+                style={{
+                  height: 10,
+                  borderRadius: 10,
+                  width: `${Math.min(progress * 100, 100)}%`,
+                  backgroundColor: actuel.couleur,
+                }}
+              />
+            </View>
+            <View
+              style={{
+                flexDirection: "row",
+                justifyContent: "space-between",
+                marginTop: 8,
+              }}
+            >
+              <Text style={{ fontSize: 11, color: "rgba(255,255,255,0.4)" }}>
+                {pts} pts
+              </Text>
+              {actuel.nom === "Platine" ? (
+                <Text
+                  style={{ fontSize: 11, color: "#E5E4E2", fontWeight: "bold" }}
+                >
+                  💎 Niveau maximum atteint !
+                </Text>
+              ) : (
+                <Text style={{ fontSize: 11, color: "rgba(255,255,255,0.5)" }}>
+                  encore{" "}
+                  <Text style={{ color: actuel.couleur, fontWeight: "bold" }}>
+                    {manquants} pts
+                  </Text>{" "}
+                  pour {suivant?.emoji} {suivant?.nom}
+                </Text>
+              )}
+            </View>
+          </View>
+        );
+      })()}
+
+      {/* QR Code + Code-barres */}
       <View style={s.barcodeBloc}>
         <BarcodeVisuel
           numCarte={client.num_carte}
@@ -765,6 +900,7 @@ function OngletAccueil({
         />
       </View>
 
+      {/* Menu actions */}
       {[
         { icon: "🧾", label: "Dernier ticket d'achat" },
         { icon: "🎁", label: "Avantages Carte DSM" },
@@ -787,6 +923,7 @@ function OngletAccueil({
         </TouchableOpacity>
       ))}
 
+      {/* Modal Ticket */}
       {showTicket && achats.length > 0 && (
         <View style={s.ticketModal}>
           <View style={s.ticketContainer}>
@@ -849,6 +986,283 @@ function OngletAccueil({
           </View>
         </View>
       )}
+
+      {/* Modal Historique complet */}
+      <Modal
+        visible={showHistorique}
+        animationType="slide"
+        onRequestClose={() => setShowHistorique(false)}
+      >
+        <View style={{ flex: 1, backgroundColor: "#05102A" }}>
+          <View
+            style={{
+              backgroundColor: "#0A1F4E",
+              padding: 20,
+              paddingTop: 50,
+              flexDirection: "row",
+              alignItems: "center",
+            }}
+          >
+            <TouchableOpacity
+              onPress={() => setShowHistorique(false)}
+              style={{ marginRight: 12 }}
+            >
+              <Text style={{ fontSize: 22, color: "#FFD080" }}>←</Text>
+            </TouchableOpacity>
+            <View>
+              <Text style={{ fontSize: 18, color: "#fff", fontWeight: "bold" }}>
+                Historique des achats
+              </Text>
+              <Text style={{ fontSize: 12, color: "rgba(255,255,255,0.5)" }}>
+                {achats.length} achats au total
+              </Text>
+            </View>
+          </View>
+
+          {/* Stats */}
+          <View style={{ flexDirection: "row", margin: 16, gap: 10 }}>
+            <View
+              style={{
+                flex: 1,
+                backgroundColor: "#0A1F4E",
+                borderRadius: 14,
+                padding: 14,
+                alignItems: "center",
+              }}
+            >
+              <Text
+                style={{ fontSize: 22, color: "#FFD080", fontWeight: "bold" }}
+              >
+                {achats.reduce((s, a) => s + (a.prix || 0), 0).toFixed(0)} DH
+              </Text>
+              <Text
+                style={{
+                  fontSize: 11,
+                  color: "rgba(255,255,255,0.5)",
+                  marginTop: 4,
+                }}
+              >
+                Total dépensé
+              </Text>
+            </View>
+            <View
+              style={{
+                flex: 1,
+                backgroundColor: "#0A1F4E",
+                borderRadius: 14,
+                padding: 14,
+                alignItems: "center",
+              }}
+            >
+              <Text
+                style={{ fontSize: 22, color: "#4CAF50", fontWeight: "bold" }}
+              >
+                {achats.reduce((s, a) => s + (a.points_gagnes || 0), 0)} pts
+              </Text>
+              <Text
+                style={{
+                  fontSize: 11,
+                  color: "rgba(255,255,255,0.5)",
+                  marginTop: 4,
+                }}
+              >
+                Points gagnés
+              </Text>
+            </View>
+            <View
+              style={{
+                flex: 1,
+                backgroundColor: "#0A1F4E",
+                borderRadius: 14,
+                padding: 14,
+                alignItems: "center",
+              }}
+            >
+              <Text
+                style={{ fontSize: 22, color: "#2E86FF", fontWeight: "bold" }}
+              >
+                {achats.length}
+              </Text>
+              <Text
+                style={{
+                  fontSize: 11,
+                  color: "rgba(255,255,255,0.5)",
+                  marginTop: 4,
+                }}
+              >
+                Livres achetés
+              </Text>
+            </View>
+          </View>
+
+          {/* Filtre mois */}
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            style={{ paddingLeft: 16, marginBottom: 8, maxHeight: 44 }}
+          >
+            {[
+              "Tous",
+              "Jan",
+              "Fév",
+              "Mar",
+              "Avr",
+              "Mai",
+              "Jun",
+              "Jul",
+              "Aoû",
+              "Sep",
+              "Oct",
+              "Nov",
+              "Déc",
+            ].map((m, i) => (
+              <TouchableOpacity
+                key={m}
+                onPress={() => setFiltreMois(i)}
+                style={{
+                  paddingHorizontal: 16,
+                  paddingVertical: 8,
+                  borderRadius: 20,
+                  marginRight: 8,
+                  backgroundColor:
+                    filtreMois === i ? "#2E86FF" : "rgba(255,255,255,0.08)",
+                }}
+              >
+                <Text
+                  style={{
+                    color: filtreMois === i ? "#fff" : "rgba(255,255,255,0.5)",
+                    fontWeight: "600",
+                    fontSize: 13,
+                  }}
+                >
+                  {m}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+
+          {/* Liste */}
+          <ScrollView style={{ flex: 1, padding: 16 }}>
+            {achats.filter((a) =>
+              filtreMois === 0
+                ? true
+                : new Date(a.created_at).getMonth() + 1 === filtreMois,
+            ).length === 0 ? (
+              <View style={{ alignItems: "center", marginTop: 60 }}>
+                <Text style={{ fontSize: 40 }}>📭</Text>
+                <Text
+                  style={{
+                    color: "rgba(255,255,255,0.4)",
+                    marginTop: 12,
+                    fontSize: 15,
+                  }}
+                >
+                  Aucun achat ce mois-ci
+                </Text>
+              </View>
+            ) : (
+              achats
+                .filter((a) =>
+                  filtreMois === 0
+                    ? true
+                    : new Date(a.created_at).getMonth() + 1 === filtreMois,
+                )
+                .map((achat, i) => (
+                  <View
+                    key={i}
+                    style={{
+                      backgroundColor: "#0A1F4E",
+                      borderRadius: 14,
+                      padding: 16,
+                      marginBottom: 12,
+                      flexDirection: "row",
+                      alignItems: "center",
+                    }}
+                  >
+                    <View
+                      style={{
+                        width: 48,
+                        height: 48,
+                        borderRadius: 12,
+                        backgroundColor: "rgba(46,134,255,0.15)",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        marginRight: 14,
+                      }}
+                    >
+                      <Text style={{ fontSize: 24 }}>📚</Text>
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text
+                        style={{
+                          color: "#fff",
+                          fontWeight: "bold",
+                          fontSize: 14,
+                        }}
+                        numberOfLines={1}
+                      >
+                        {achat.titre}
+                      </Text>
+                      <Text
+                        style={{
+                          color: "rgba(255,255,255,0.4)",
+                          fontSize: 12,
+                          marginTop: 2,
+                        }}
+                      >
+                        {achat.auteur}
+                      </Text>
+                      <Text
+                        style={{
+                          color: "rgba(255,255,255,0.3)",
+                          fontSize: 11,
+                          marginTop: 4,
+                        }}
+                      >
+                        {new Date(achat.created_at).toLocaleDateString(
+                          "fr-FR",
+                          { day: "numeric", month: "long", year: "numeric" },
+                        )}
+                      </Text>
+                    </View>
+                    <View style={{ alignItems: "flex-end" }}>
+                      <Text
+                        style={{
+                          color: "#FFD080",
+                          fontWeight: "bold",
+                          fontSize: 15,
+                        }}
+                      >
+                        {achat.prix?.toFixed(2)} DH
+                      </Text>
+                      <View
+                        style={{
+                          backgroundColor: "rgba(76,175,80,0.15)",
+                          borderRadius: 8,
+                          paddingHorizontal: 8,
+                          paddingVertical: 3,
+                          marginTop: 6,
+                        }}
+                      >
+                        <Text
+                          style={{
+                            color: "#4CAF50",
+                            fontSize: 11,
+                            fontWeight: "bold",
+                          }}
+                        >
+                          +{achat.points_gagnes} pts
+                        </Text>
+                      </View>
+                    </View>
+                  </View>
+                ))
+            )}
+            <View style={{ height: 40 }} />
+          </ScrollView>
+        </View>
+      </Modal>
+
       <View style={{ height: 20 }} />
     </ScrollView>
   );
@@ -1393,7 +1807,6 @@ export default function App() {
 
   return (
     <View style={{ flex: 1, backgroundColor: "#F5F7FF" }}>
-      {/* Écran validation commande */}
       {showValidation && (
         <View
           style={{

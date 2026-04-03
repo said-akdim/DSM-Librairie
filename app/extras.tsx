@@ -1056,3 +1056,4 @@ const es = StyleSheet.create({
   confirmerBtnDisabled: { backgroundColor:"#8AAABF" },
   confirmerBtnTxt: { color:"#fff", fontWeight:"bold", fontSize:16 },
 });
+export default function Extras() { return null; }
