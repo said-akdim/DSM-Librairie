@@ -28,14 +28,156 @@ import {
   OngletSuiviCommandes,
 } from "./extras";
 
-const LIVRES = [
+/* ══════════════════════════════════════
+   CONFIG ODOO 18
+══════════════════════════════════════ */
+const ODOO_URL = "http://154.144.243.35:8069"; // ← Remplacez par votre IP fixe
+const ODOO_DB = "Dsm";
+const ODOO_LOGIN = "admin";
+const ODOO_PASSWORD = "admin";
+
+let odooCookies = "";
+
+async function odooAuthenticate(): Promise<boolean> {
+  try {
+    const res = await fetch(`${ODOO_URL}/web/session/authenticate`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        jsonrpc: "2.0",
+        method: "call",
+        id: 1,
+        params: { db: ODOO_DB, login: ODOO_LOGIN, password: ODOO_PASSWORD },
+      }),
+    });
+    const data = await res.json();
+    if (data.result?.uid) {
+      odooCookies = res.headers.get("set-cookie") || "";
+      return true;
+    }
+    return false;
+  } catch {
+    return false;
+  }
+}
+
+async function odooCallKw(
+  model: string,
+  method: string,
+  args: any[],
+  kwargs: any,
+): Promise<any[]> {
+  try {
+    const res = await fetch(`${ODOO_URL}/web/dataset/call_kw`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Cookie: odooCookies },
+      body: JSON.stringify({
+        jsonrpc: "2.0",
+        method: "call",
+        id: Math.random(),
+        params: { model, method, args, kwargs },
+      }),
+    });
+    const data = await res.json();
+    return data.result || [];
+  } catch {
+    return [];
+  }
+}
+
+async function odooGetProduits(): Promise<any[]> {
+  const auth = await odooAuthenticate();
+  if (!auth) return [];
+  return odooCallKw(
+    "product.template",
+    "search_read",
+    [
+      [
+        ["sale_ok", "=", true],
+        ["active", "=", true],
+      ],
+    ],
+    {
+      fields: [
+        "name",
+        "list_price",
+        "description_sale",
+        "categ_id",
+        "qty_available",
+      ],
+      limit: 100,
+    },
+  );
+}
+
+async function odooGetClient(email: string, password: string): Promise<any> {
+  const auth = await odooAuthenticate();
+  if (!auth) return null;
+  const results = await odooCallKw(
+    "res.partner",
+    "search_read",
+    [[["email", "=", email]]],
+    { fields: ["name", "email", "phone", "street", "city"], limit: 1 },
+  );
+  return results.length > 0 ? results[0] : null;
+}
+
+async function odooCreateVente(
+  clientOdooId: number,
+  produits: any[],
+): Promise<boolean> {
+  const auth = await odooAuthenticate();
+  if (!auth) return false;
+  try {
+    await odooCallKw(
+      "sale.order",
+      "create",
+      [
+        {
+          partner_id: clientOdooId,
+          order_line: produits.map((p) => [
+            0,
+            0,
+            {
+              product_id: p.odoo_id,
+              product_uom_qty: 1,
+              price_unit: p.prix,
+            },
+          ]),
+        },
+      ],
+      {},
+    );
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/* ══════════════════════════════════════
+   MAPPING EMOJI PAR GENRE
+══════════════════════════════════════ */
+const EMOJI_GENRE: Record<string, string> = {
+  roman: "📗",
+  policier: "🔍",
+  "sci-fi": "🚀",
+  jeunesse: "🧙",
+  biographie: "⚗️",
+  bd: "🎨",
+  all: "📚",
+};
+
+/* ══════════════════════════════════════
+   LIVRES STATIQUES (fallback)
+══════════════════════════════════════ */
+const LIVRES_STATIQUES = [
   {
     titre: "Les Misérables",
     auteur: "Victor Hugo",
     prix: 18.9,
     emoji: "📗",
-    genre: "Roman",
-    desc: "Une fresque humaniste inoubliable sur la misère et la rédemption.",
+    genre: "roman",
+    desc: "Une fresque humaniste inoubliable.",
     pages: 1900,
     annee: 1862,
     note: 4.9,
@@ -45,8 +187,8 @@ const LIVRES = [
     auteur: "Albert Camus",
     prix: 8.5,
     emoji: "📘",
-    genre: "Roman",
-    desc: "Le roman fondateur de l'absurde, court et bouleversant.",
+    genre: "roman",
+    desc: "Le roman fondateur de l'absurde.",
     pages: 186,
     annee: 1942,
     note: 4.7,
@@ -56,8 +198,8 @@ const LIVRES = [
     auteur: "Fred Vargas",
     prix: 9.2,
     emoji: "🔍",
-    genre: "Policier",
-    desc: "Commissaire Adamsberg face à une menace mystérieuse.",
+    genre: "policier",
+    desc: "Commissaire Adamsberg face à une menace.",
     pages: 368,
     annee: 2001,
     note: 4.8,
@@ -67,8 +209,8 @@ const LIVRES = [
     auteur: "Frank Herbert",
     prix: 14.9,
     emoji: "🌑",
-    genre: "Sci-Fi",
-    desc: "L'épopée épique d'Arrakis, planète désertique.",
+    genre: "sci-fi",
+    desc: "L'épopée épique d'Arrakis.",
     pages: 896,
     annee: 1965,
     note: 4.9,
@@ -78,8 +220,8 @@ const LIVRES = [
     auteur: "J.K. Rowling",
     prix: 13.9,
     emoji: "🧙",
-    genre: "Jeunesse",
-    desc: "Le début d'une aventure magique pour tous les âges.",
+    genre: "jeunesse",
+    desc: "Le début d'une aventure magique.",
     pages: 320,
     annee: 1997,
     note: 5.0,
@@ -89,8 +231,8 @@ const LIVRES = [
     auteur: "Saint-Exupéry",
     prix: 7.5,
     emoji: "🌹",
-    genre: "Jeunesse",
-    desc: "Le conte philosophique le plus lu au monde.",
+    genre: "jeunesse",
+    desc: "Le conte philosophique le plus lu.",
     pages: 96,
     annee: 1943,
     note: 4.9,
@@ -100,22 +242,22 @@ const LIVRES = [
     auteur: "Isaac Asimov",
     prix: 11.5,
     emoji: "🚀",
-    genre: "Sci-Fi",
-    desc: "Le cycle le plus ambitieux de la science-fiction.",
+    genre: "sci-fi",
+    desc: "Le cycle le plus ambitieux de la SF.",
     pages: 400,
     annee: 1951,
     note: 4.9,
   },
   {
-    titre: "Les Misérables T.2",
-    auteur: "Victor Hugo",
-    prix: 16.9,
-    emoji: "📚",
-    genre: "Roman",
-    desc: "La suite magistrale de l'œuvre de Hugo.",
-    pages: 1200,
-    annee: 1862,
-    note: 4.8,
+    titre: "Tintin au Tibet",
+    auteur: "Hergé",
+    prix: 14.5,
+    emoji: "🎨",
+    genre: "bd",
+    desc: "L'aventure la plus émouvante de Tintin.",
+    pages: 62,
+    annee: 1960,
+    note: 4.9,
   },
 ];
 
@@ -154,6 +296,9 @@ const OFFRES = [
   },
 ];
 
+/* ══════════════════════════════════════
+   UTILITAIRES
+══════════════════════════════════════ */
 function isAnniversaire(dateNaissance: string) {
   if (!dateNaissance) return false;
   const today = new Date();
@@ -172,7 +317,7 @@ async function envoyerEmailBienvenue(
       subject: "🎉 Bienvenue chez DSM Librairie !",
       body: `Bonjour ${prenom},\n\nVotre carte fidélité DSM est activée !\n\nN° de carte : ${numCarte}\nPoints de bienvenue : 50 pts\n\nMerci de votre confiance.\n\nL'équipe DSM Librairie`,
     });
-  } catch (e) {
+  } catch {
     console.log("Email non disponible");
   }
 }
@@ -193,7 +338,7 @@ async function envoyerEmailAchat(
       subject: "✅ Confirmation de votre achat DSM",
       body: `Bonjour ${prenom},\n\nMerci pour votre achat !\n\n${lignes}\n\nTotal : ${total.toFixed(2)} DH\nPoints gagnés : +${pts} pts\n\nÀ bientôt chez DSM Librairie !`,
     });
-  } catch (e) {
+  } catch {
     console.log("Email non disponible");
   }
 }
@@ -309,6 +454,34 @@ const qrStyles = StyleSheet.create({
 });
 
 /* ══════════════════════════════════════
+   BADGE SOURCE DONNÉES
+══════════════════════════════════════ */
+function SourceBadge({ source }: { source: "odoo" | "supabase" | "local" }) {
+  const config = {
+    odoo: { label: "🟢 Odoo 18 Live", color: "#27AE60" },
+    supabase: { label: "🔵 Supabase", color: "#1A6FFF" },
+    local: { label: "⚪ Données locales", color: "#8AAABF" },
+  };
+  const c = config[source];
+  return (
+    <View
+      style={{
+        backgroundColor: c.color + "20",
+        borderRadius: 99,
+        paddingHorizontal: 10,
+        paddingVertical: 3,
+        alignSelf: "flex-start",
+        marginTop: 4,
+      }}
+    >
+      <Text style={{ fontSize: 10, color: c.color, fontWeight: "bold" }}>
+        {c.label}
+      </Text>
+    </View>
+  );
+}
+
+/* ══════════════════════════════════════
    ÉCRAN CONNEXION
 ══════════════════════════════════════ */
 function EcranConnexion({ onLogin }: { onLogin: (c: any) => void }) {
@@ -336,9 +509,14 @@ function EcranConnexion({ onLogin }: { onLogin: (c: any) => void }) {
         .eq("email", email)
         .eq("mdp", mdp)
         .single();
-      if (error || !data) setErreur("❌ Email ou mot de passe incorrect");
-      else onLogin(data);
-    } catch (e) {
+      if (error || !data) {
+        setErreur("❌ Email ou mot de passe incorrect");
+      } else {
+        // Enrichir avec données Odoo si disponible
+        const odooClient = await odooGetClient(email, mdp);
+        onLogin({ ...data, odoo_id: odooClient?.id || null });
+      }
+    } catch {
       setErreur("❌ Erreur de connexion");
     }
     setLoading(false);
@@ -397,7 +575,7 @@ function EcranConnexion({ onLogin }: { onLogin: (c: any) => void }) {
         );
         onLogin(data);
       }
-    } catch (e) {
+    } catch {
       setErreur("❌ Erreur de connexion");
     }
     setLoading(false);
@@ -585,12 +763,16 @@ function DetailLivre({
             <View style={s.detailBadge}>
               <Text style={s.detailBadgeTxt}>{livre.genre}</Text>
             </View>
-            <View style={s.detailBadge}>
-              <Text style={s.detailBadgeTxt}>{livre.pages} pages</Text>
-            </View>
-            <View style={s.detailBadge}>
-              <Text style={s.detailBadgeTxt}>{livre.annee}</Text>
-            </View>
+            {livre.pages > 0 && (
+              <View style={s.detailBadge}>
+                <Text style={s.detailBadgeTxt}>{livre.pages} pages</Text>
+              </View>
+            )}
+            {livre.annee > 0 && (
+              <View style={s.detailBadge}>
+                <Text style={s.detailBadgeTxt}>{livre.annee}</Text>
+              </View>
+            )}
           </View>
           <View
             style={{
@@ -604,7 +786,7 @@ function DetailLivre({
               <Text
                 key={i}
                 style={{
-                  color: i < Math.floor(livre.note) ? "#F5A623" : "#ccc",
+                  color: i < Math.floor(livre.note || 4) ? "#F5A623" : "#ccc",
                   fontSize: 20,
                 }}
               >
@@ -612,13 +794,15 @@ function DetailLivre({
               </Text>
             ))}
             <Text style={{ color: "#8AAABF", fontSize: 14, marginLeft: 4 }}>
-              {livre.note}/5
+              {livre.note || 4.5}/5
             </Text>
           </View>
         </View>
         <View style={{ padding: 20 }}>
           <Text style={s.detailDescTitre}>Description</Text>
-          <Text style={s.detailDesc}>{livre.desc}</Text>
+          <Text style={s.detailDesc}>
+            {livre.desc || "Aucune description disponible."}
+          </Text>
           <View style={s.detailPrixBox}>
             <View>
               <Text style={{ fontSize: 12, color: "#8AAABF" }}>Prix</Text>
@@ -642,7 +826,7 @@ function DetailLivre({
             style={s.detailWhatsappBtn}
             onPress={() =>
               Linking.openURL(
-                `whatsapp://send?text=Je recommande "${livre.titre}" de ${livre.auteur} disponible à la Librairie DSM pour ${livre.prix.toFixed(2)} DH 📚`,
+                `whatsapp://send?text=Je recommande "${livre.titre}" de ${livre.auteur} à la Librairie DSM — ${livre.prix.toFixed(2)} DH 📚`,
               )
             }
           >
@@ -670,7 +854,6 @@ function OngletAccueil({
   const [filtreMois, setFiltreMois] = useState(0);
   const [estEnLigne, setEstEnLigne] = useState(true);
 
-  // Vérification connexion réseau
   useEffect(() => {
     const unsub = NetInfo.addEventListener((state) => {
       setEstEnLigne(state.isConnected ?? true);
@@ -678,7 +861,6 @@ function OngletAccueil({
     return () => unsub();
   }, []);
 
-  // Chargement achats + vérif anniversaire
   useEffect(() => {
     supabase
       .from("achats")
@@ -689,18 +871,31 @@ function OngletAccueil({
       .then(({ data }) => {
         if (data) setAchats(data);
       });
-    if (client.date_naissance && isAnniversaire(client.date_naissance)) {
+    if (client.date_naissance && isAnniversaire(client.date_naissance))
       onAnniversaire();
-    }
   }, [client.id]);
 
   const gains6mois = achats.reduce((sum, a) => sum + (a.points_gagnes || 0), 0);
   const solde = (client.points * 0.1).toFixed(2).replace(".", ",");
   const gainsDH = (gains6mois * 0.1).toFixed(2).replace(".", ",");
 
+  const niveaux = [
+    { nom: "Bronze", min: 0, max: 500, couleur: "#CD7F32", emoji: "🥉" },
+    { nom: "Silver", min: 500, max: 1000, couleur: "#C0C0C0", emoji: "🥈" },
+    { nom: "Gold", min: 1000, max: 2000, couleur: "#FFD080", emoji: "🥇" },
+    { nom: "Platine", min: 2000, max: 2000, couleur: "#E5E4E2", emoji: "💎" },
+  ];
+  const pts = client.points || 0;
+  const actuel = niveaux.find((n) => pts < n.max) || niveaux[3];
+  const suivant = niveaux[niveaux.indexOf(actuel) + 1];
+  const progress =
+    actuel.nom === "Platine"
+      ? 1
+      : (pts - actuel.min) / (actuel.max - actuel.min);
+  const manquants = suivant ? actuel.max - pts : 0;
+
   return (
     <ScrollView style={s.ongletContainer} showsVerticalScrollIndicator={false}>
-      {/* Bannière hors ligne */}
       {!estEnLigne && (
         <View
           style={{
@@ -720,7 +915,6 @@ function OngletAccueil({
         </View>
       )}
 
-      {/* Bannière anniversaire */}
       {client.date_naissance && isAnniversaire(client.date_naissance) && (
         <View style={s.anniversaireBanner}>
           <Text style={s.anniversaireEmoji}>🎂</Text>
@@ -735,7 +929,7 @@ function OngletAccueil({
         </View>
       )}
 
-      {/* Bloc solde */}
+      {/* Solde */}
       <View style={s.soldeBloc}>
         <View style={s.soldeTopRow}>
           <View style={{ flex: 1 }}>
@@ -770,128 +964,88 @@ function OngletAccueil({
         </TouchableOpacity>
       </View>
 
-      {/* Barre de progression niveau */}
-      {(() => {
-        const niveaux = [
-          { nom: "Bronze", min: 0, max: 500, couleur: "#CD7F32", emoji: "🥉" },
-          {
-            nom: "Silver",
-            min: 500,
-            max: 1000,
-            couleur: "#C0C0C0",
-            emoji: "🥈",
-          },
-          {
-            nom: "Gold",
-            min: 1000,
-            max: 2000,
-            couleur: "#FFD080",
-            emoji: "🥇",
-          },
-          {
-            nom: "Platine",
-            min: 2000,
-            max: 2000,
-            couleur: "#E5E4E2",
-            emoji: "💎",
-          },
-        ];
-        const pts = client.points || 0;
-        const actuel = niveaux.find((n) => pts < n.max) || niveaux[3];
-        const suivant = niveaux[niveaux.indexOf(actuel) + 1];
-        const progress =
-          actuel.nom === "Platine"
-            ? 1
-            : (pts - actuel.min) / (actuel.max - actuel.min);
-        const manquants = suivant ? actuel.max - pts : 0;
-
-        return (
+      {/* Progression niveau */}
+      <View
+        style={{
+          marginHorizontal: 16,
+          marginBottom: 16,
+          backgroundColor: "#05102A",
+          borderRadius: 16,
+          padding: 14,
+        }}
+      >
+        <View
+          style={{
+            flexDirection: "row",
+            justifyContent: "space-between",
+            marginBottom: 10,
+          }}
+        >
+          {niveaux.map((n, i) => (
+            <View
+              key={i}
+              style={{ alignItems: "center", opacity: pts >= n.min ? 1 : 0.3 }}
+            >
+              <Text style={{ fontSize: 18 }}>{n.emoji}</Text>
+              <Text
+                style={{
+                  fontSize: 9,
+                  color: pts >= n.min ? n.couleur : "rgba(255,255,255,0.3)",
+                  fontWeight: "bold",
+                  marginTop: 2,
+                }}
+              >
+                {n.nom}
+              </Text>
+            </View>
+          ))}
+        </View>
+        <View
+          style={{
+            height: 10,
+            backgroundColor: "rgba(255,255,255,0.1)",
+            borderRadius: 10,
+            overflow: "hidden",
+          }}
+        >
           <View
             style={{
-              marginHorizontal: 16,
-              marginBottom: 16,
-              backgroundColor: "#05102A",
-              borderRadius: 16,
-              padding: 14,
+              height: 10,
+              borderRadius: 10,
+              width: `${Math.min(progress * 100, 100)}%`,
+              backgroundColor: actuel.couleur,
             }}
-          >
-            <View
-              style={{
-                flexDirection: "row",
-                justifyContent: "space-between",
-                marginBottom: 10,
-              }}
+          />
+        </View>
+        <View
+          style={{
+            flexDirection: "row",
+            justifyContent: "space-between",
+            marginTop: 8,
+          }}
+        >
+          <Text style={{ fontSize: 11, color: "rgba(255,255,255,0.4)" }}>
+            {pts} pts
+          </Text>
+          {actuel.nom === "Platine" ? (
+            <Text
+              style={{ fontSize: 11, color: "#E5E4E2", fontWeight: "bold" }}
             >
-              {niveaux.map((n, i) => (
-                <View
-                  key={i}
-                  style={{
-                    alignItems: "center",
-                    opacity: pts >= n.min ? 1 : 0.3,
-                  }}
-                >
-                  <Text style={{ fontSize: 18 }}>{n.emoji}</Text>
-                  <Text
-                    style={{
-                      fontSize: 9,
-                      color: pts >= n.min ? n.couleur : "rgba(255,255,255,0.3)",
-                      fontWeight: "bold",
-                      marginTop: 2,
-                    }}
-                  >
-                    {n.nom}
-                  </Text>
-                </View>
-              ))}
-            </View>
-            <View
-              style={{
-                height: 10,
-                backgroundColor: "rgba(255,255,255,0.1)",
-                borderRadius: 10,
-                overflow: "hidden",
-              }}
-            >
-              <View
-                style={{
-                  height: 10,
-                  borderRadius: 10,
-                  width: `${Math.min(progress * 100, 100)}%`,
-                  backgroundColor: actuel.couleur,
-                }}
-              />
-            </View>
-            <View
-              style={{
-                flexDirection: "row",
-                justifyContent: "space-between",
-                marginTop: 8,
-              }}
-            >
-              <Text style={{ fontSize: 11, color: "rgba(255,255,255,0.4)" }}>
-                {pts} pts
-              </Text>
-              {actuel.nom === "Platine" ? (
-                <Text
-                  style={{ fontSize: 11, color: "#E5E4E2", fontWeight: "bold" }}
-                >
-                  💎 Niveau maximum atteint !
-                </Text>
-              ) : (
-                <Text style={{ fontSize: 11, color: "rgba(255,255,255,0.5)" }}>
-                  encore{" "}
-                  <Text style={{ color: actuel.couleur, fontWeight: "bold" }}>
-                    {manquants} pts
-                  </Text>{" "}
-                  pour {suivant?.emoji} {suivant?.nom}
-                </Text>
-              )}
-            </View>
-          </View>
-        );
-      })()}
+              💎 Niveau maximum atteint !
+            </Text>
+          ) : (
+            <Text style={{ fontSize: 11, color: "rgba(255,255,255,0.5)" }}>
+              encore{" "}
+              <Text style={{ color: actuel.couleur, fontWeight: "bold" }}>
+                {manquants} pts
+              </Text>{" "}
+              pour {suivant?.emoji} {suivant?.nom}
+            </Text>
+          )}
+        </View>
+      </View>
 
-      {/* QR Code + Code-barres */}
+      {/* QR + Barcode */}
       <View style={s.barcodeBloc}>
         <BarcodeVisuel
           numCarte={client.num_carte}
@@ -900,7 +1054,7 @@ function OngletAccueil({
         />
       </View>
 
-      {/* Menu actions */}
+      {/* Menu rapide */}
       {[
         { icon: "🧾", label: "Dernier ticket d'achat" },
         { icon: "🎁", label: "Avantages Carte DSM" },
@@ -923,7 +1077,7 @@ function OngletAccueil({
         </TouchableOpacity>
       ))}
 
-      {/* Modal Ticket */}
+      {/* Ticket */}
       {showTicket && achats.length > 0 && (
         <View style={s.ticketModal}>
           <View style={s.ticketContainer}>
@@ -987,7 +1141,7 @@ function OngletAccueil({
         </View>
       )}
 
-      {/* Modal Historique complet */}
+      {/* Historique Modal */}
       <Modal
         visible={showHistorique}
         animationType="slide"
@@ -1018,84 +1172,59 @@ function OngletAccueil({
               </Text>
             </View>
           </View>
-
-          {/* Stats */}
           <View style={{ flexDirection: "row", margin: 16, gap: 10 }}>
-            <View
-              style={{
-                flex: 1,
-                backgroundColor: "#0A1F4E",
-                borderRadius: 14,
-                padding: 14,
-                alignItems: "center",
-              }}
-            >
-              <Text
-                style={{ fontSize: 22, color: "#FFD080", fontWeight: "bold" }}
-              >
-                {achats.reduce((s, a) => s + (a.prix || 0), 0).toFixed(0)} DH
-              </Text>
-              <Text
+            {[
+              {
+                val:
+                  achats.reduce((s, a) => s + (a.prix || 0), 0).toFixed(0) +
+                  " DH",
+                lbl: "Total dépensé",
+                color: "#FFD080",
+              },
+              {
+                val:
+                  achats.reduce((s, a) => s + (a.points_gagnes || 0), 0) +
+                  " pts",
+                lbl: "Points gagnés",
+                color: "#4CAF50",
+              },
+              {
+                val: String(achats.length),
+                lbl: "Livres achetés",
+                color: "#2E86FF",
+              },
+            ].map((item, i) => (
+              <View
+                key={i}
                 style={{
-                  fontSize: 11,
-                  color: "rgba(255,255,255,0.5)",
-                  marginTop: 4,
+                  flex: 1,
+                  backgroundColor: "#0A1F4E",
+                  borderRadius: 14,
+                  padding: 14,
+                  alignItems: "center",
                 }}
               >
-                Total dépensé
-              </Text>
-            </View>
-            <View
-              style={{
-                flex: 1,
-                backgroundColor: "#0A1F4E",
-                borderRadius: 14,
-                padding: 14,
-                alignItems: "center",
-              }}
-            >
-              <Text
-                style={{ fontSize: 22, color: "#4CAF50", fontWeight: "bold" }}
-              >
-                {achats.reduce((s, a) => s + (a.points_gagnes || 0), 0)} pts
-              </Text>
-              <Text
-                style={{
-                  fontSize: 11,
-                  color: "rgba(255,255,255,0.5)",
-                  marginTop: 4,
-                }}
-              >
-                Points gagnés
-              </Text>
-            </View>
-            <View
-              style={{
-                flex: 1,
-                backgroundColor: "#0A1F4E",
-                borderRadius: 14,
-                padding: 14,
-                alignItems: "center",
-              }}
-            >
-              <Text
-                style={{ fontSize: 22, color: "#2E86FF", fontWeight: "bold" }}
-              >
-                {achats.length}
-              </Text>
-              <Text
-                style={{
-                  fontSize: 11,
-                  color: "rgba(255,255,255,0.5)",
-                  marginTop: 4,
-                }}
-              >
-                Livres achetés
-              </Text>
-            </View>
+                <Text
+                  style={{
+                    fontSize: 22,
+                    color: item.color,
+                    fontWeight: "bold",
+                  }}
+                >
+                  {item.val}
+                </Text>
+                <Text
+                  style={{
+                    fontSize: 11,
+                    color: "rgba(255,255,255,0.5)",
+                    marginTop: 4,
+                  }}
+                >
+                  {item.lbl}
+                </Text>
+              </View>
+            ))}
           </View>
-
-          {/* Filtre mois */}
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
@@ -1140,136 +1269,115 @@ function OngletAccueil({
               </TouchableOpacity>
             ))}
           </ScrollView>
-
-          {/* Liste */}
           <ScrollView style={{ flex: 1, padding: 16 }}>
-            {achats.filter((a) =>
-              filtreMois === 0
-                ? true
-                : new Date(a.created_at).getMonth() + 1 === filtreMois,
-            ).length === 0 ? (
-              <View style={{ alignItems: "center", marginTop: 60 }}>
-                <Text style={{ fontSize: 40 }}>📭</Text>
-                <Text
+            {achats
+              .filter((a) =>
+                filtreMois === 0
+                  ? true
+                  : new Date(a.created_at).getMonth() + 1 === filtreMois,
+              )
+              .map((achat, i) => (
+                <View
+                  key={i}
                   style={{
-                    color: "rgba(255,255,255,0.4)",
-                    marginTop: 12,
-                    fontSize: 15,
+                    backgroundColor: "#0A1F4E",
+                    borderRadius: 14,
+                    padding: 16,
+                    marginBottom: 12,
+                    flexDirection: "row",
+                    alignItems: "center",
                   }}
                 >
-                  Aucun achat ce mois-ci
-                </Text>
-              </View>
-            ) : (
-              achats
-                .filter((a) =>
-                  filtreMois === 0
-                    ? true
-                    : new Date(a.created_at).getMonth() + 1 === filtreMois,
-                )
-                .map((achat, i) => (
                   <View
-                    key={i}
                     style={{
-                      backgroundColor: "#0A1F4E",
-                      borderRadius: 14,
-                      padding: 16,
-                      marginBottom: 12,
-                      flexDirection: "row",
+                      width: 48,
+                      height: 48,
+                      borderRadius: 12,
+                      backgroundColor: "rgba(46,134,255,0.15)",
                       alignItems: "center",
+                      justifyContent: "center",
+                      marginRight: 14,
                     }}
                   >
-                    <View
+                    <Text style={{ fontSize: 24 }}>📚</Text>
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text
                       style={{
-                        width: 48,
-                        height: 48,
-                        borderRadius: 12,
-                        backgroundColor: "rgba(46,134,255,0.15)",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        marginRight: 14,
+                        color: "#fff",
+                        fontWeight: "bold",
+                        fontSize: 14,
+                      }}
+                      numberOfLines={1}
+                    >
+                      {achat.titre}
+                    </Text>
+                    <Text
+                      style={{
+                        color: "rgba(255,255,255,0.4)",
+                        fontSize: 12,
+                        marginTop: 2,
                       }}
                     >
-                      <Text style={{ fontSize: 24 }}>📚</Text>
-                    </View>
-                    <View style={{ flex: 1 }}>
+                      {achat.auteur}
+                    </Text>
+                    <Text
+                      style={{
+                        color: "rgba(255,255,255,0.3)",
+                        fontSize: 11,
+                        marginTop: 4,
+                      }}
+                    >
+                      {new Date(achat.created_at).toLocaleDateString("fr-FR", {
+                        day: "numeric",
+                        month: "long",
+                        year: "numeric",
+                      })}
+                    </Text>
+                  </View>
+                  <View style={{ alignItems: "flex-end" }}>
+                    <Text
+                      style={{
+                        color: "#FFD080",
+                        fontWeight: "bold",
+                        fontSize: 15,
+                      }}
+                    >
+                      {achat.prix?.toFixed(2)} DH
+                    </Text>
+                    <View
+                      style={{
+                        backgroundColor: "rgba(76,175,80,0.15)",
+                        borderRadius: 8,
+                        paddingHorizontal: 8,
+                        paddingVertical: 3,
+                        marginTop: 6,
+                      }}
+                    >
                       <Text
                         style={{
-                          color: "#fff",
-                          fontWeight: "bold",
-                          fontSize: 14,
-                        }}
-                        numberOfLines={1}
-                      >
-                        {achat.titre}
-                      </Text>
-                      <Text
-                        style={{
-                          color: "rgba(255,255,255,0.4)",
-                          fontSize: 12,
-                          marginTop: 2,
-                        }}
-                      >
-                        {achat.auteur}
-                      </Text>
-                      <Text
-                        style={{
-                          color: "rgba(255,255,255,0.3)",
+                          color: "#4CAF50",
                           fontSize: 11,
-                          marginTop: 4,
-                        }}
-                      >
-                        {new Date(achat.created_at).toLocaleDateString(
-                          "fr-FR",
-                          { day: "numeric", month: "long", year: "numeric" },
-                        )}
-                      </Text>
-                    </View>
-                    <View style={{ alignItems: "flex-end" }}>
-                      <Text
-                        style={{
-                          color: "#FFD080",
                           fontWeight: "bold",
-                          fontSize: 15,
                         }}
                       >
-                        {achat.prix?.toFixed(2)} DH
+                        +{achat.points_gagnes} pts
                       </Text>
-                      <View
-                        style={{
-                          backgroundColor: "rgba(76,175,80,0.15)",
-                          borderRadius: 8,
-                          paddingHorizontal: 8,
-                          paddingVertical: 3,
-                          marginTop: 6,
-                        }}
-                      >
-                        <Text
-                          style={{
-                            color: "#4CAF50",
-                            fontSize: 11,
-                            fontWeight: "bold",
-                          }}
-                        >
-                          +{achat.points_gagnes} pts
-                        </Text>
-                      </View>
                     </View>
                   </View>
-                ))
-            )}
+                </View>
+              ))}
             <View style={{ height: 40 }} />
           </ScrollView>
         </View>
       </Modal>
-
       <View style={{ height: 20 }} />
     </ScrollView>
   );
 }
 
 /* ══════════════════════════════════════
-   ONGLET BOUTIQUE
+   ONGLET BOUTIQUE — Odoo 18 + Supabase + Fallback
 ══════════════════════════════════════ */
 function OngletBoutique({
   client,
@@ -1280,19 +1388,95 @@ function OngletBoutique({
   onAchat: (pts: number, livres: any[], total: number) => void;
   onValider: (panier: any[]) => void;
 }) {
+  const [livres, setLivres] = useState<any[]>([]);
+  const [loadingLivres, setLoadingLivres] = useState(true);
+  const [sourceData, setSourceData] = useState<"odoo" | "supabase" | "local">(
+    "local",
+  );
   const [panier, setPanier] = useState<any[]>([]);
   const [showPanier, setShowPanier] = useState(false);
   const [recherche, setRecherche] = useState("");
   const [livreDetail, setLivreDetail] = useState<any>(null);
+  const [genreActif, setGenreActif] = useState("tous");
+
+  useEffect(() => {
+    const chargerLivres = async () => {
+      // ── 1. Essayer Odoo 18 ──────────────────────
+      try {
+        const produits = await odooGetProduits();
+        if (produits.length > 0) {
+          setLivres(
+            produits.map((p: any) => ({
+              titre: p.name,
+              auteur: p.categ_id?.[1] || "DSM Librairie",
+              prix: p.list_price || 0,
+              emoji: EMOJI_GENRE[p.categ_id?.[1]?.toLowerCase()] || "📚",
+              genre: p.categ_id?.[1]?.toLowerCase() || "roman",
+              desc: p.description_sale || p.name,
+              pages: 0,
+              annee: new Date().getFullYear(),
+              note: 4.5,
+              odoo_id: p.id,
+              stock: p.qty_available || 0,
+            })),
+          );
+          setSourceData("odoo");
+          setLoadingLivres(false);
+          return;
+        }
+      } catch {
+        console.log("Odoo indisponible");
+      }
+
+      // ── 2. Fallback Supabase ────────────────────
+      try {
+        const { data } = await supabase
+          .from("produits")
+          .select("*")
+          .eq("disponible", true)
+          .order("titre");
+        if (data && data.length > 0) {
+          setLivres(
+            data.map((p) => ({
+              titre: p.titre || p.name || "Livre",
+              auteur: p.auteur || "Auteur inconnu",
+              prix: parseFloat(p.prix) || 0,
+              emoji: EMOJI_GENRE[p.genre?.toLowerCase()] || "📚",
+              genre: p.genre || "roman",
+              desc: p.description || "",
+              pages: p.pages || 0,
+              annee: p.annee || new Date().getFullYear(),
+              note: p.note || 4.5,
+            })),
+          );
+          setSourceData("supabase");
+          setLoadingLivres(false);
+          return;
+        }
+      } catch {
+        console.log("Supabase indisponible");
+      }
+
+      // ── 3. Données locales ──────────────────────
+      setLivres(LIVRES_STATIQUES);
+      setSourceData("local");
+      setLoadingLivres(false);
+    };
+
+    chargerLivres();
+  }, []);
+
   const total = panier.reduce((a, b) => a + b.prix, 0);
   const pts = Math.round(total * 10);
-
-  const livresFiltres = LIVRES.filter(
-    (l) =>
+  const genres = ["tous", ...Array.from(new Set(livres.map((l) => l.genre)))];
+  const livresFiltres = livres.filter((l) => {
+    const matchGenre = genreActif === "tous" || l.genre === genreActif;
+    const matchRecherche =
+      !recherche ||
       l.titre.toLowerCase().includes(recherche.toLowerCase()) ||
-      l.auteur.toLowerCase().includes(recherche.toLowerCase()) ||
-      l.genre.toLowerCase().includes(recherche.toLowerCase()),
-  );
+      l.auteur.toLowerCase().includes(recherche.toLowerCase());
+    return matchGenre && matchRecherche;
+  });
 
   if (livreDetail) {
     return (
@@ -1311,7 +1495,10 @@ function OngletBoutique({
   return (
     <View style={s.ongletContainer}>
       <View style={s.boutiqueHeader}>
-        <Text style={s.boutiqueTitre}>🛍️ Boutique DSM</Text>
+        <View>
+          <Text style={s.boutiqueTitre}>🛍️ Boutique DSM</Text>
+          {!loadingLivres && <SourceBadge source={sourceData} />}
+        </View>
         <TouchableOpacity
           style={s.panierBtn}
           onPress={() => setShowPanier(!showPanier)}
@@ -1319,11 +1506,12 @@ function OngletBoutique({
           <Text style={s.panierBtnTxt}>🛒 {panier.length}</Text>
         </TouchableOpacity>
       </View>
+
       <View style={s.rechercheBox}>
         <Text style={{ fontSize: 16, marginRight: 8 }}>🔍</Text>
         <TextInput
           style={s.rechercheInput}
-          placeholder="Rechercher un livre, auteur, genre..."
+          placeholder="Rechercher un livre, auteur..."
           placeholderTextColor="#8AAABF"
           value={recherche}
           onChangeText={setRecherche}
@@ -1336,6 +1524,38 @@ function OngletBoutique({
           </TouchableOpacity>
         )}
       </View>
+
+      {/* Filtre genres */}
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        style={{ maxHeight: 44, paddingLeft: 12 }}
+      >
+        {genres.map((g) => (
+          <TouchableOpacity
+            key={g}
+            onPress={() => setGenreActif(g)}
+            style={{
+              paddingHorizontal: 14,
+              paddingVertical: 7,
+              borderRadius: 99,
+              backgroundColor: genreActif === g ? "#05102A" : "#EAF2FF",
+              marginRight: 8,
+            }}
+          >
+            <Text
+              style={{
+                fontSize: 12,
+                fontWeight: "700",
+                color: genreActif === g ? "#FFD080" : "#4A6080",
+              }}
+            >
+              {EMOJI_GENRE[g] || "📚"} {g.charAt(0).toUpperCase() + g.slice(1)}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </ScrollView>
+
       {showPanier && (
         <View style={s.panierBox}>
           {panier.length === 0 ? (
@@ -1348,6 +1568,17 @@ function OngletBoutique({
                   <Text style={{ flex: 1, color: "#040D2A", fontSize: 13 }}>
                     {livre.titre}
                   </Text>
+                  <TouchableOpacity
+                    onPress={() =>
+                      setPanier((p) => p.filter((_, idx) => idx !== i))
+                    }
+                  >
+                    <Text
+                      style={{ color: "#E74C3C", fontSize: 16, marginRight: 8 }}
+                    >
+                      ✕
+                    </Text>
+                  </TouchableOpacity>
                   <Text style={{ color: "#05102A", fontWeight: "bold" }}>
                     {livre.prix.toFixed(2)} DH
                   </Text>
@@ -1381,37 +1612,65 @@ function OngletBoutique({
           )}
         </View>
       )}
+
       <ScrollView>
-        {recherche.length > 0 && (
-          <Text style={{ padding: 12, color: "#8AAABF", fontSize: 12 }}>
-            {livresFiltres.length} résultat(s) pour "{recherche}"
-          </Text>
-        )}
-        <View style={s.livresGrid}>
-          {livresFiltres.map((livre, i) => (
-            <TouchableOpacity
-              key={i}
-              style={s.livreCard}
-              onPress={() => setLivreDetail(livre)}
-            >
-              <Text style={s.livreEmoji}>{livre.emoji}</Text>
-              <Text style={s.livreTitre}>{livre.titre}</Text>
-              <Text style={s.livreAuteur}>{livre.auteur}</Text>
-              <Text style={s.livrePrix}>{livre.prix.toFixed(2)} DH</Text>
-              <Text style={s.livrePts}>+{Math.round(livre.prix * 10)} pts</Text>
+        {loadingLivres ? (
+          <View style={{ alignItems: "center", padding: 60 }}>
+            <ActivityIndicator color="#1A6FFF" size="large" />
+            <Text style={{ color: "#8AAABF", marginTop: 16, fontSize: 14 }}>
+              Chargement du catalogue...
+            </Text>
+            <Text style={{ color: "#B0C4D8", marginTop: 6, fontSize: 12 }}>
+              Synchronisation avec Odoo 18
+            </Text>
+          </View>
+        ) : (
+          <View style={s.livresGrid}>
+            {livresFiltres.map((livre, i) => (
               <TouchableOpacity
-                style={s.ajouterBtn}
-                onPress={(e) => {
-                  e.stopPropagation?.();
-                  setPanier((p) => [...p, livre]);
-                }}
+                key={i}
+                style={s.livreCard}
+                onPress={() => setLivreDetail(livre)}
               >
-                <Text style={s.ajouterTxt}>+ Ajouter</Text>
+                <Text style={s.livreEmoji}>{livre.emoji}</Text>
+                <Text style={s.livreTitre} numberOfLines={2}>
+                  {livre.titre}
+                </Text>
+                <Text style={s.livreAuteur} numberOfLines={1}>
+                  {livre.auteur}
+                </Text>
+                {livre.stock !== undefined &&
+                  livre.stock <= 3 &&
+                  livre.stock > 0 && (
+                    <Text
+                      style={{
+                        fontSize: 9,
+                        color: "#E74C3C",
+                        textAlign: "center",
+                        marginBottom: 2,
+                      }}
+                    >
+                      ⚠️ Plus que {livre.stock} en stock
+                    </Text>
+                  )}
+                <Text style={s.livrePrix}>{livre.prix.toFixed(2)} DH</Text>
+                <Text style={s.livrePts}>
+                  +{Math.round(livre.prix * 10)} pts
+                </Text>
+                <TouchableOpacity
+                  style={s.ajouterBtn}
+                  onPress={(e) => {
+                    e.stopPropagation?.();
+                    setPanier((p) => [...p, livre]);
+                  }}
+                >
+                  <Text style={s.ajouterTxt}>+ Ajouter</Text>
+                </TouchableOpacity>
               </TouchableOpacity>
-            </TouchableOpacity>
-          ))}
-        </View>
-        {livresFiltres.length === 0 && (
+            ))}
+          </View>
+        )}
+        {!loadingLivres && livresFiltres.length === 0 && (
           <View style={{ alignItems: "center", padding: 40 }}>
             <Text style={{ fontSize: 40 }}>📭</Text>
             <Text style={{ color: "#8AAABF", marginTop: 12, fontSize: 15 }}>
@@ -1543,7 +1802,6 @@ function OngletClassement({ client }: { client: any }) {
   }, []);
 
   const medailles = ["🥇", "🥈", "🥉"];
-
   return (
     <ScrollView style={s.ongletContainer}>
       <View style={s.classementHeader}>
@@ -1673,7 +1931,7 @@ function OngletProfil({
       await Linking.openURL(
         `whatsapp://send?text=Ma carte fidélité DSM Librairie 📚%0AN° : ${client.num_carte}%0ANiveau : ${client.niveau}%0APoints : ${client.points} pts`,
       );
-    } catch (e) {
+    } catch {
       Alert.alert("WhatsApp non disponible");
     }
   };
@@ -1693,6 +1951,23 @@ function OngletProfil({
         <Text style={s.profilSous}>
           Membre {client.niveau} · {client.points} pts
         </Text>
+        {client.odoo_id && (
+          <View
+            style={{
+              backgroundColor: "#27AE6020",
+              borderRadius: 99,
+              paddingHorizontal: 12,
+              paddingVertical: 4,
+              marginTop: 8,
+            }}
+          >
+            <Text
+              style={{ fontSize: 11, color: "#27AE60", fontWeight: "bold" }}
+            >
+              🟢 Synchronisé avec Odoo 18
+            </Text>
+          </View>
+        )}
         <TouchableOpacity style={s.whatsappBtn} onPress={partagerCarte}>
           <Text style={s.whatsappBtnTxt}>
             📱 Partager ma carte sur WhatsApp
@@ -1714,6 +1989,11 @@ function OngletProfil({
             icon: "💰",
             label: "Solde",
             val: `${(client.points * 0.1).toFixed(2)} DH`,
+          },
+          {
+            icon: "🔗",
+            label: "ID Odoo",
+            val: client.odoo_id ? `#${client.odoo_id}` : "Non lié",
           },
         ].map((info, i) => (
           <View key={i} style={s.profilItem}>
@@ -1753,7 +2033,7 @@ export default function App() {
         Notifications.addNotificationResponseReceivedListener(() =>
           setOnglet("notifs"),
         );
-    } catch (e) {}
+    } catch {}
     return () => {
       try {
         if (notifListener.current)
@@ -1762,7 +2042,7 @@ export default function App() {
           Notifications.removeNotificationSubscription(
             responseListener.current,
           );
-      } catch (e) {}
+      } catch {}
     };
   }, [client?.id]);
 
@@ -1787,10 +2067,42 @@ export default function App() {
   };
 
   const addPoints = async (pts: number, livres: any[], total: number) => {
-    setClient((c: any) => ({ ...c, points: c.points + pts }));
-    if (client?.email) {
-      await envoyerEmailAchat(client.email, client.prenom, livres, total, pts);
+    // Mettre à jour Supabase
+    const newPoints = client.points + pts;
+    await supabase
+      .from("clients")
+      .update({ points: newPoints })
+      .eq("id", client.id);
+
+    // Enregistrer les achats dans Supabase
+    for (const livre of livres) {
+      await supabase.from("achats").insert({
+        client_id: client.id,
+        titre: livre.titre,
+        auteur: livre.auteur,
+        prix: livre.prix,
+        points_gagnes: Math.round(livre.prix * 10),
+      });
     }
+
+    // Créer la vente dans Odoo si client lié
+    if (client.odoo_id) {
+      const avecOdooId = livres.filter((l) => l.odoo_id);
+      if (avecOdooId.length > 0)
+        await odooCreateVente(client.odoo_id, avecOdooId);
+    }
+
+    // Notification Supabase
+    await supabase.from("notifications").insert({
+      client_id: client.id,
+      titre: "🛍️ Achat confirmé !",
+      message: `+${pts} points fidélité ajoutés. Total : ${total.toFixed(2)} DH`,
+      lu: false,
+    });
+
+    setClient((c: any) => ({ ...c, points: newPoints }));
+    if (client?.email)
+      await envoyerEmailAchat(client.email, client.prenom, livres, total, pts);
   };
 
   if (!client) return <EcranConnexion onLogin={setClient} />;
@@ -1881,7 +2193,7 @@ export default function App() {
       {onglet === "coups_coeur" && (
         <OngletCoupsCoeur
           client={client}
-          livres={LIVRES}
+          livres={LIVRES_STATIQUES}
           onAjouterPanier={(l) => {}}
         />
       )}
@@ -2186,24 +2498,6 @@ const s = StyleSheet.create({
     marginHorizontal: 16,
     marginBottom: 12,
   },
-  achatCard: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#fff",
-    marginBottom: 10,
-    borderRadius: 18,
-    padding: 16,
-    shadowColor: "#0A2463",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 8,
-    elevation: 2,
-    gap: 12,
-  },
-  achatEmoji: { fontSize: 28 },
-  achatTitre: { fontSize: 13, fontWeight: "bold", color: "#05102A" },
-  achatAuteur: { fontSize: 11, color: "#8AAABF", marginTop: 2 },
-  achatPts: { fontSize: 15, fontWeight: "bold", color: "#F5A623" },
   boutiqueHeader: {
     backgroundColor: "#05102A",
     padding: 16,
