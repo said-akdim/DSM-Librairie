@@ -32,7 +32,7 @@ import {
    CONFIG ODOO 18
    ⚠️ Remplacez par votre IP Mac locale
 ══════════════════════════════════════ */
-const ODOO_URL = "http://192.168.100.49:8069";
+const ODOO_URL = "http://192.168.1.110:8069";
 const ODOO_DB = "Dsm";
 const ODOO_LOGIN = "admin";
 const ODOO_PASSWORD = "admin";
