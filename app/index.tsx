@@ -36,8 +36,8 @@ const ODOO_URL = "http://192.168.1.110:8069";
 const ODOO_DB = "Dsm";
 const ODOO_LOGIN = "admin";
 const ODOO_PASSWORD = "admin";
-const WS_URL = "ws://192.168.100.49:8090";
-const WEBHOOK_URL = "http://192.168.100.49:3001";
+const WS_URL = "ws://192.168.0.231:8090";
+const WEBHOOK_URL = "http://192.168.0.231:3001";
 
 let odooCookies = "";
 
