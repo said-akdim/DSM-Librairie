@@ -32,7 +32,8 @@ import {
 const ODOO_URL = "http://localhost:8069";
 const ODOO_DB = "Dsm";
 const WS_URL = "ws://localhost:8090";
-
+const ODOO_URL = "http://192.168.100.49:8069";
+const WS_URL = "ws://192.168.100.49:8090";
 /* ══════════════════════════════════════
    ODOO 18 API
 ══════════════════════════════════════ */
