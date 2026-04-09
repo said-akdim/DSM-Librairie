@@ -29,9 +29,9 @@ import {
 /* ══════════════════════════════════════
    ⚠️ REMPLACEZ PAR VOTRE IP MAC
 ══════════════════════════════════════ */
-const ODOO_URL = "http://192.168.100.49:8069";
+const ODOO_URL = "http://localhost:8069";
 const ODOO_DB = "Dsm";
-const WS_URL = "ws://192.168.100.49:8090";
+const WS_URL = "ws://localhost:8090";
 
 /* ══════════════════════════════════════
    ODOO 18 API
@@ -320,7 +320,19 @@ function EcranConnexion({ onLogin }: { onLogin: (c: any) => void }) {
     if (!email || !mdp) { setErreur("❌ Remplissez tous les champs"); return; }
     setLoading(true); setErreur("");
     try {
-      const result = await odooAuth(email, mdp);
+      // Essayer avec email, puis avec login direct
+      let result = await odooAuth(email, mdp);
+      // Si echec, chercher le login par email
+      if (!result) {
+        await odooAuthAdmin();
+        const users = await odooCall("res.users", "search_read",
+          [[["login", "=", email]]],
+          { fields: ["login", "partner_id"], limit: 1 }
+        );
+        if (users?.length > 0) {
+          result = await odooAuth(users[0].login, mdp);
+        }
+      }
       if (result?.uid) {
         await odooAuthAdmin();
         const partner = await odooGetClient(result.partner_id);
