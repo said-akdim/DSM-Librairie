@@ -29,28 +29,34 @@ import {
 /* ══════════════════════════════════════
    ⚠️ REMPLACEZ PAR VOTRE IP MAC
 ══════════════════════════════════════ */
-const ODOO_URL = "http://localhost:8069";
+const ODOO_URL = "http://192.168.100.49:8069";
 const ODOO_DB = "Dsm";
-const WS_URL = "ws://localhost:8090";
+const WS_URL = "ws://192.168.100.49:8090";
 
 /* ══════════════════════════════════════
    ODOO 18 API
 ══════════════════════════════════════ */
 let odooCookies = "";
 let odooUid = 0;
-async function odooCall(model: string, method: string, args: any[], kwargs: any = {}): Promise<any> {
+
+async function odooAuth(login: string, password: string): Promise<any> {
   try {
-    const res = await fetch(`${ODOO_URL}/web/dataset/call_kw`, {
+    const res = await fetch(`${ODOO_URL}/web/session/authenticate`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       credentials: "include",
       body: JSON.stringify({
-        jsonrpc: "2.0", method: "call", id: Date.now(),
-        params: { model, method, args, kwargs },
+        jsonrpc: "2.0", method: "call", id: 1,
+        params: { db: ODOO_DB, login, password },
       }),
     });
     const data = await res.json();
-    return data.result || null;
+    if (data.result?.uid) {
+      odooCookies = res.headers.get("set-cookie") || "";
+      odooUid = data.result.uid;
+      return data.result;
+    }
+    return null;
   } catch { return null; }
 }
 
@@ -58,7 +64,8 @@ async function odooCall(model: string, method: string, args: any[], kwargs: any 
   try {
     const res = await fetch(`${ODOO_URL}/web/dataset/call_kw`, {
       method: "POST",
-      headers: { "Content-Type": "application/json", Cookie: odooCookies },
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
       body: JSON.stringify({
         jsonrpc: "2.0", method: "call", id: Date.now(),
         params: { model, method, args, kwargs },
@@ -316,19 +323,7 @@ function EcranConnexion({ onLogin }: { onLogin: (c: any) => void }) {
     if (!email || !mdp) { setErreur("❌ Remplissez tous les champs"); return; }
     setLoading(true); setErreur("");
     try {
-      // Essayer avec email, puis avec login direct
-      let result = await odooAuth(email, mdp);
-      // Si echec, chercher le login par email
-      if (!result) {
-        await odooAuthAdmin();
-        const users = await odooCall("res.users", "search_read",
-          [[["login", "=", email]]],
-          { fields: ["login", "partner_id"], limit: 1 }
-        );
-        if (users?.length > 0) {
-          result = await odooAuth(users[0].login, mdp);
-        }
-      }
+      const result = await odooAuth(email, mdp);
       if (result?.uid) {
         await odooAuthAdmin();
         const partner = await odooGetClient(result.partner_id);
