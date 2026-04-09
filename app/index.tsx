@@ -38,24 +38,19 @@ const WS_URL = "ws://localhost:8090";
 ══════════════════════════════════════ */
 let odooCookies = "";
 let odooUid = 0;
-
-async function odooAuth(login: string, password: string): Promise<any> {
+async function odooCall(model: string, method: string, args: any[], kwargs: any = {}): Promise<any> {
   try {
-    const res = await fetch(`${ODOO_URL}/web/session/authenticate`, {
+    const res = await fetch(`${ODOO_URL}/web/dataset/call_kw`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
+      credentials: "include",
       body: JSON.stringify({
-        jsonrpc: "2.0", method: "call", id: 1,
-        params: { db: ODOO_DB, login, password },
+        jsonrpc: "2.0", method: "call", id: Date.now(),
+        params: { model, method, args, kwargs },
       }),
     });
     const data = await res.json();
-    if (data.result?.uid) {
-      odooCookies = res.headers.get("set-cookie") || "";
-      odooUid = data.result.uid;
-      return data.result;
-    }
-    return null;
+    return data.result || null;
   } catch { return null; }
 }
 
@@ -79,6 +74,7 @@ async function odooAuthAdmin(): Promise<boolean> {
     const res = await fetch(`${ODOO_URL}/web/session/authenticate`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
+      credentials: "include",
       body: JSON.stringify({
         jsonrpc: "2.0", method: "call", id: 1,
         params: { db: ODOO_DB, login: "admin", password: "admin" },
