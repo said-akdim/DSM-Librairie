@@ -1,4 +1,5 @@
 import { CameraView, useCameraPermissions } from "expo-camera";
+import { ODOO_URL, ODOO_DB } from "./config";
 import { useState } from "react";
 import {
   ActivityIndicator,
