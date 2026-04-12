@@ -29,9 +29,12 @@ import {
 /* ══════════════════════════════════════
    ⚠️ REMPLACEZ PAR VOTRE IP MAC
 ══════════════════════════════════════ */
-const ODOO_URL = "http://192.168.100.49:8069";
+// ⚠️ IP de votre Mac — lancez update-ip.sh pour mettre à jour automatiquement
+const IP_MAC = "192.168.100.52";
+const IS_WEB = typeof window !== "undefined" && window?.location?.hostname === "localhost";
+const ODOO_URL = IS_WEB ? "http://localhost:8069" : `http://${IP_MAC}:8069`;
+const WS_URL = IS_WEB ? "ws://localhost:8090" : `ws://${IP_MAC}:8090`;
 const ODOO_DB = "Dsm";
-const WS_URL = "ws://192.168.100.49:8090";
 
 /* ══════════════════════════════════════
    ODOO 18 API
