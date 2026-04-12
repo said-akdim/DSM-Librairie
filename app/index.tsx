@@ -323,19 +323,49 @@ function EcranConnexion({ onLogin }: { onLogin: (c: any) => void }) {
     if (!email || !mdp) { setErreur("❌ Remplissez tous les champs"); return; }
     setLoading(true); setErreur("");
     try {
-      const result = await odooAuth(email, mdp);
+      // Essai 1: login direct avec ce qui est saisi
+      let result = await odooAuth(email, mdp);
+
+      // Essai 2: chercher le login par email
+      if (!result?.uid) {
+        const adminOk = await odooAuthAdmin();
+        if (adminOk) {
+          const users = await odooCall("res.users", "search_read",
+            [[["email", "=", email]]],
+            { fields: ["login", "partner_id"], limit: 1 }
+          );
+          if (users?.length > 0) {
+            result = await odooAuth(users[0].login, mdp);
+          }
+        }
+      }
+
       if (result?.uid) {
         await odooAuthAdmin();
         const partner = await odooGetClient(result.partner_id);
         if (partner) {
           onLogin({ ...partner, odoo_uid: result.uid, email, mdp });
         } else {
-          setErreur("❌ Profil client introuvable dans Odoo");
+          // Creer le profil client automatiquement
+          const numCarte = String(Math.floor(1000 + Math.random() * 9000));
+          const partnerId = await odooCall("res.partner", "create", [{
+            name: email.split("@")[0],
+            email: email,
+            customer_rank: 1,
+            dsm_num_carte: numCarte,
+            dsm_points: 50,
+          }]);
+          if (partnerId) {
+            const newPartner = await odooGetClient(partnerId);
+            onLogin({ ...newPartner, odoo_uid: result.uid, email, mdp });
+          } else {
+            setErreur("❌ Profil client introuvable");
+          }
         }
       } else {
-        setErreur("❌ Email ou mot de passe incorrect");
+        setErreur("❌ Login ou mot de passe incorrect");
       }
-    } catch { setErreur("❌ Erreur de connexion"); }
+    } catch (e) { setErreur("❌ Erreur de connexion"); }
     setLoading(false);
   };
 
@@ -385,23 +415,23 @@ function EcranConnexion({ onLogin }: { onLogin: (c: any) => void }) {
       </View>
       <View style={s.form}>
         {mode === "login" && <>
-          <TextInput style={s.input} placeholder="Email" placeholderTextColor="#7AAAD0"
-            value={email} onChangeText={setEmail} keyboardType="email-address" autoCapitalize="none" />
+          <TextInput style={s.input} placeholder="Login Odoo ou Email" placeholderTextColor="#7AAAD0"
+            value={email} onChangeText={setEmail} autoCapitalize="none" />
           <TextInput style={s.input} placeholder="Mot de passe" placeholderTextColor="#7AAAD0"
             value={mdp} onChangeText={setMdp} secureTextEntry />
           {erreur ? <Text style={s.erreur}>{erreur}</Text> : null}
           <TouchableOpacity style={s.bouton} onPress={connexion} disabled={loading}>
             {loading ? <ActivityIndicator color="#fff" /> : <Text style={s.boutonTxt}>Se connecter →</Text>}
           </TouchableOpacity>
-          <Text style={s.demo}>Connectez-vous avec votre compte Odoo</Text>
+          <Text style={s.demo}>Login : admin  —  Mot de passe : admin</Text>
         </>}
         {mode === "inscription" && <>
           <View style={s.rowInputs}>
             <TextInput style={[s.input, { flex: 1, marginRight: 8 }]} placeholder="Prénom" placeholderTextColor="#7AAAD0" value={prenom} onChangeText={setPrenom} />
             <TextInput style={[s.input, { flex: 1 }]} placeholder="Nom" placeholderTextColor="#7AAAD0" value={nom} onChangeText={setNom} />
           </View>
-          <TextInput style={s.input} placeholder="Email" placeholderTextColor="#7AAAD0"
-            value={email} onChangeText={setEmail} keyboardType="email-address" autoCapitalize="none" />
+          <TextInput style={s.input} placeholder="Login Odoo ou Email" placeholderTextColor="#7AAAD0"
+            value={email} onChangeText={setEmail} autoCapitalize="none" />
           <TextInput style={s.input} placeholder="Mot de passe" placeholderTextColor="#7AAAD0"
             value={mdp} onChangeText={setMdp} secureTextEntry />
           <Text style={s.genreLabel}>Genre littéraire favori</Text>
