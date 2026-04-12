@@ -9,7 +9,83 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { supabase } from "../supabase";
+
+const ODOO_URL = "http://192.168.100.49:8069";
+const ODOO_DB = "Dsm";
+
+let caissCookies = "";
+
+async function caissAuthAdmin(): Promise<boolean> {
+  try {
+    const res = await fetch(`${ODOO_URL}/web/session/authenticate`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({
+        jsonrpc: "2.0", method: "call", id: 1,
+        params: { db: ODOO_DB, login: "admin", password: "admin" },
+      }),
+    });
+    const data = await res.json();
+    if (data.result?.uid) { caissCookies = res.headers.get("set-cookie") || ""; return true; }
+    return false;
+  } catch { return false; }
+}
+
+async function caissCall(model: string, method: string, args: any[], kwargs: any = {}): Promise<any> {
+  try {
+    const res = await fetch(`${ODOO_URL}/web/dataset/call_kw`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({
+        jsonrpc: "2.0", method: "call", id: Date.now(),
+        params: { model, method, args, kwargs },
+      }),
+    });
+    const data = await res.json();
+    return data.result || null;
+  } catch { return null; }
+}
+
+async function rechercherClientParCarte(numCarte: string): Promise<any> {
+  await caissAuthAdmin();
+  const result = await caissCall("res.partner", "search_read",
+    [[["dsm_num_carte", "=", numCarte]]],
+    { fields: ["name", "email", "dsm_points", "dsm_niveau", "dsm_num_carte", "dsm_solde"], limit: 1 }
+  );
+  return result?.[0] || null;
+}
+
+async function ajouterPointsClient(partnerId: number, points: number, montant: number): Promise<boolean> {
+  const partner = await caissCall("res.partner", "search_read",
+    [[["id", "=", partnerId]]],
+    { fields: ["dsm_points"], limit: 1 }
+  );
+  if (!partner?.[0]) return false;
+  const pointsAvant = partner[0].dsm_points;
+  const pointsApres = pointsAvant + points;
+
+  await caissCall("res.partner", "write", [[partnerId], { dsm_points: pointsApres }]);
+
+  await caissCall("dsm.historique.points", "create", [{
+    partner_id: partnerId,
+    points: points,
+    type: "achat",
+    description: `Achat en caisse DSM - ${montant.toFixed(2)} DH`,
+    points_avant: pointsAvant,
+    points_apres: pointsApres,
+  }]);
+
+  await caissCall("dsm.notification", "create", [{
+    partner_id: partnerId,
+    titre: `+${points} points fidélité !`,
+    message: `Achat en caisse : ${montant.toFixed(2)} DH — Total : ${pointsApres} pts`,
+    type: "points",
+  }]);
+
+  return true;
+}
 
 export default function Caisse() {
   const [permission, requestPermission] = useCameraPermissions();
@@ -17,580 +93,190 @@ export default function Caisse() {
   const [client, setClient] = useState<any>(null);
   const [montant, setMontant] = useState("");
   const [loading, setLoading] = useState(false);
-  const [phase, setPhase] = useState<"scan" | "confirm" | "success">("scan");
-  const [ptsGagnes, setPtsGagnes] = useState(0);
+  const [phase, setPhase] = useState<"scan" | "saisie" | "confirm" | "success">("scan");
+  const [numCarteManuel, setNumCarteManuel] = useState("");
 
-  const onScan = async ({ data }: { data: string }) => {
-    if (!scanning) return;
+  const handleScan = async (data: string) => {
     setScanning(false);
     setLoading(true);
-    try {
-      // Chercher le client par numéro de carte
-      const { data: clientData, error } = await supabase
-        .from("clients")
-        .select("*")
-        .eq("num_carte", data)
-        .single();
-      if (error || !clientData) {
-        Alert.alert("❌ Carte non reconnue", "Numéro de carte invalide.");
-        setScanning(true);
-      } else {
-        setClient(clientData);
-        setPhase("confirm");
-      }
-    } catch (e) {
-      Alert.alert("❌ Erreur", "Impossible de lire la carte.");
+    const found = await rechercherClientParCarte(data.trim());
+    if (found) {
+      setClient(found);
+      setPhase("confirm");
+    } else {
+      Alert.alert("❌ Carte introuvable", `Numéro ${data} non trouvé dans Odoo`);
+      setPhase("scan");
     }
     setLoading(false);
   };
 
-  const validerAchat = async () => {
-    if (!montant || !client) return;
+  const handleSaisieManuelle = async () => {
+    if (!numCarteManuel) { Alert.alert("Entrez un numéro de carte"); return; }
     setLoading(true);
-    const m = parseFloat(montant);
-    const pts = Math.round(m * 10);
-    try {
-      const newPoints = client.points + pts;
-      const newNiveau =
-        newPoints >= 2000
-          ? "Platine"
-          : newPoints >= 1000
-            ? "Gold"
-            : newPoints >= 500
-              ? "Silver"
-              : "Bronze";
-      await supabase
-        .from("clients")
-        .update({ points: newPoints, niveau: newNiveau })
-        .eq("id", client.id);
-      await supabase.from("achats").insert({
-        client_id: client.id,
-        titre: "Achat en caisse",
-        auteur: "DSM Librairie",
-        prix: m,
-        points_gagnes: pts,
-      });
-      await supabase.from("notifications").insert({
-        client_id: client.id,
-        titre: "✅ Achat validé en caisse !",
-        message: `+${pts} pts pour un achat de ${m.toFixed(2)} DH`,
-        lu: false,
-      });
-      setPtsGagnes(pts);
-      setClient((c: any) => ({ ...c, points: newPoints, niveau: newNiveau }));
+    const found = await rechercherClientParCarte(numCarteManuel.trim());
+    if (found) {
+      setClient(found);
+      setPhase("confirm");
+    } else {
+      Alert.alert("❌ Carte introuvable", `Numéro ${numCarteManuel} non trouvé`);
+    }
+    setLoading(false);
+  };
+
+  const handleValider = async () => {
+    if (!montant || isNaN(parseFloat(montant))) {
+      Alert.alert("Entrez un montant valide");
+      return;
+    }
+    setLoading(true);
+    const total = parseFloat(montant);
+    const points = Math.round(total * 10);
+    const ok = await ajouterPointsClient(client.id, points, total);
+    if (ok) {
       setPhase("success");
-    } catch (e) {
-      Alert.alert("❌ Erreur", "Impossible de valider l'achat.");
+    } else {
+      Alert.alert("❌ Erreur", "Impossible d'ajouter les points");
     }
     setLoading(false);
   };
 
   const reset = () => {
-    setPhase("scan");
     setClient(null);
     setMontant("");
-    setPtsGagnes(0);
+    setNumCarteManuel("");
+    setPhase("scan");
     setScanning(false);
   };
 
-  // Permissions
-  if (!permission)
-    return (
-      <View style={s.container}>
-        <ActivityIndicator color="#1A6FFF" />
-      </View>
-    );
-  if (!permission.granted)
-    return (
-      <View style={s.container}>
-        <Text style={s.permTxt}>📷 Autorisation caméra requise</Text>
-        <TouchableOpacity style={s.permBtn} onPress={requestPermission}>
-          <Text style={s.permBtnTxt}>Autoriser la caméra</Text>
-        </TouchableOpacity>
-      </View>
-    );
-
-  return (
-    <View style={s.container}>
-      {/* Header */}
-      <View style={s.header}>
-        <Text style={s.headerTitre}>📚 DSM — Caisse</Text>
-        <Text style={s.headerSous}>VALIDATION CARTE FIDÉLITÉ</Text>
-      </View>
-
-      {/* PHASE SCAN */}
-      {phase === "scan" && (
-        <View style={s.scanContainer}>
-          <Text style={s.scanTitre}>Scannez la carte du client</Text>
-          <View style={s.cameraBox}>
-            {scanning ? (
-              <CameraView
-                style={s.camera}
-                facing="back"
-                barcodeScannerSettings={{
-                  barcodeTypes: ["qr", "code128", "code39", "ean13"],
-                }}
-                onBarcodeScanned={onScan}
-              >
-                {/* Viseur */}
-                <View style={s.viseur}>
-                  {[
-                    ["top", "left"],
-                    ["top", "right"],
-                    ["bottom", "left"],
-                    ["bottom", "right"],
-                  ].map(([v, h], i) => (
-                    <View
-                      key={i}
-                      style={[
-                        s.coin,
-                        {
-                          [v]: 0,
-                          [h]: 0,
-                          borderTopWidth: v === "top" ? 3 : 0,
-                          borderBottomWidth: v === "bottom" ? 3 : 0,
-                          borderLeftWidth: h === "left" ? 3 : 0,
-                          borderRightWidth: h === "right" ? 3 : 0,
-                        },
-                      ]}
-                    />
-                  ))}
-                </View>
-                <Text style={s.scanHint}>Pointez vers le code-barres</Text>
-              </CameraView>
-            ) : (
-              <View style={s.cameraPlaceholder}>
-                <Text style={{ fontSize: 60 }}>📷</Text>
-                <Text style={{ color: "#8AAABF", marginTop: 12, fontSize: 14 }}>
-                  {loading ? "Recherche du client..." : "Caméra prête"}
-                </Text>
-                {loading && (
-                  <ActivityIndicator
-                    color="#1A6FFF"
-                    style={{ marginTop: 12 }}
-                  />
-                )}
-              </View>
-            )}
-          </View>
-          {!loading && (
-            <TouchableOpacity
-              style={s.scanBtn}
-              onPress={() => setScanning(true)}
-            >
-              <Text style={s.scanBtnTxt}>📱 Lancer le scan</Text>
-            </TouchableOpacity>
-          )}
-          {/* Saisie manuelle */}
-          <Text style={s.ouTxt}>— ou saisie manuelle —</Text>
-          <ManuelInput
-            onFound={(c) => {
-              setClient(c);
-              setPhase("confirm");
-            }}
-          />
-        </View>
-      )}
-
-      {/* PHASE CONFIRM */}
-      {phase === "confirm" && client && (
-        <View style={s.confirmContainer}>
-          <View style={s.clientCard}>
-            <View style={s.clientAvatar}>
-              <Text style={{ color: "#fff", fontSize: 22, fontWeight: "bold" }}>
-                {client.prenom[0]}
-                {client.nom[0]}
-              </Text>
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={s.clientNom}>
-                {client.prenom} {client.nom}
-              </Text>
-              <Text style={s.clientInfo}>
-                Niveau {client.niveau} · {client.points} pts
-              </Text>
-              <Text style={s.clientInfo}>Carte N° {client.num_carte}</Text>
-            </View>
-            <View style={s.niveauBadge}>
-              <Text style={{ color: "#fff", fontSize: 12, fontWeight: "bold" }}>
-                {client.niveau}
-              </Text>
-            </View>
-          </View>
-
-          <Text style={s.montantLabel}>MONTANT DE L'ACHAT (DH)</Text>
-          <TextInput
-            style={s.montantInput}
-            placeholder="Ex : 89.90"
-            placeholderTextColor="#8AAABF"
-            value={montant}
-            onChangeText={setMontant}
-            keyboardType="numeric"
-            autoFocus
-          />
-
-          {montant ? (
-            <View style={s.ptsPreview}>
-              <Text style={s.ptsPreviewTxt}>
-                Points à gagner :{" "}
-                <Text style={{ color: "#F5A623", fontWeight: "bold" }}>
-                  +{Math.round(parseFloat(montant || "0") * 10)} pts
-                </Text>
-              </Text>
-            </View>
-          ) : null}
-
-          <TouchableOpacity
-            style={[s.validerBtn, !montant && s.validerBtnDisabled]}
-            onPress={validerAchat}
-            disabled={!montant || loading}
-          >
-            {loading ? (
-              <ActivityIndicator color="#fff" />
-            ) : (
-              <Text style={s.validerTxt}>✅ Valider l'achat</Text>
-            )}
-          </TouchableOpacity>
-
-          <TouchableOpacity style={s.annulerBtn} onPress={reset}>
-            <Text style={s.annulerTxt}>Annuler</Text>
-          </TouchableOpacity>
-        </View>
-      )}
-
-      {/* PHASE SUCCESS */}
-      {phase === "success" && client && (
-        <View style={s.successContainer}>
-          <Text style={{ fontSize: 70, marginBottom: 16 }}>🎉</Text>
-          <Text style={s.successTitre}>Achat validé !</Text>
-          <Text style={s.successNom}>
-            {client.prenom} {client.nom}
-          </Text>
-          <View style={s.successPtsBox}>
-            <Text style={s.successPtsLabel}>Points gagnés</Text>
-            <Text style={s.successPts}>+{ptsGagnes}</Text>
-            <Text style={s.successPtsUnit}>pts</Text>
-          </View>
-          <View style={s.successTotalBox}>
-            <Text style={{ fontSize: 14, color: "#8AAABF" }}>
-              Nouveau solde
-            </Text>
-            <Text
-              style={{
-                fontSize: 22,
-                fontWeight: "bold",
-                color: "#05102A",
-                marginTop: 4,
-              }}
-            >
-              {client.points.toLocaleString()} pts
-            </Text>
-            <Text style={{ fontSize: 14, color: "#1A6FFF" }}>
-              = {(client.points * 0.1).toFixed(2)} DH
-            </Text>
-          </View>
-          <TouchableOpacity style={s.nouvelAchatBtn} onPress={reset}>
-            <Text style={s.nouvelAchatTxt}>📱 Nouveau scan</Text>
-          </TouchableOpacity>
-        </View>
-      )}
+  if (loading) return (
+    <View style={st.centered}>
+      <ActivityIndicator size="large" color="#1A6FFF" />
+      <Text style={{ color: "#8AAABF", marginTop: 12 }}>Connexion Odoo...</Text>
     </View>
   );
-}
 
-/* Saisie manuelle du numéro de carte */
-function ManuelInput({ onFound }: { onFound: (c: any) => void }) {
-  const [num, setNum] = useState("");
-  const [loading, setLoading] = useState(false);
-
-  const chercher = async () => {
-    if (!num) return;
-    setLoading(true);
-    try {
-      const { data, error } = await supabase
-        .from("clients")
-        .select("*")
-        .eq("num_carte", num)
-        .single();
-      if (error || !data) Alert.alert("❌ Carte non trouvée");
-      else onFound(data);
-    } catch (e) {
-      Alert.alert("❌ Erreur");
-    }
-    setLoading(false);
-  };
-
-  return (
-    <View style={s.manuelBox}>
-      <TextInput
-        style={s.manuelInput}
-        placeholder="N° de carte (ex: 8821)"
-        placeholderTextColor="#8AAABF"
-        value={num}
-        onChangeText={setNum}
-        keyboardType="numeric"
-        maxLength={4}
-      />
-      <TouchableOpacity
-        style={s.manuelBtn}
-        onPress={chercher}
-        disabled={loading}
-      >
-        {loading ? (
-          <ActivityIndicator color="#fff" size="small" />
-        ) : (
-          <Text style={s.manuelBtnTxt}>Chercher</Text>
-        )}
+  if (phase === "success") return (
+    <View style={st.centered}>
+      <Text style={{ fontSize: 60 }}>🎉</Text>
+      <Text style={st.successTitre}>Points ajoutés !</Text>
+      <Text style={st.successNom}>{client?.name}</Text>
+      <Text style={st.successPts}>+{Math.round(parseFloat(montant) * 10)} pts</Text>
+      <Text style={st.successTotal}>Total : {(client?.dsm_points || 0) + Math.round(parseFloat(montant) * 10)} pts</Text>
+      <TouchableOpacity style={st.btnPrimary} onPress={reset}>
+        <Text style={st.btnTxt}>✅ Nouvelle transaction</Text>
       </TouchableOpacity>
     </View>
   );
+
+  if (phase === "confirm") return (
+    <View style={st.container}>
+      <View style={st.clientCard}>
+        <Text style={st.cardEmoji}>👤</Text>
+        <Text style={st.cardNom}>{client?.name}</Text>
+        <Text style={st.cardNiveau}>{client?.dsm_niveau} — {client?.dsm_points} pts</Text>
+        <Text style={st.cardCarte}>Carte N° {client?.dsm_num_carte}</Text>
+      </View>
+      <Text style={st.label}>Montant de l'achat (DH)</Text>
+      <TextInput
+        style={st.input}
+        placeholder="Ex: 150.00"
+        placeholderTextColor="#8AAABF"
+        value={montant}
+        onChangeText={setMontant}
+        keyboardType="numeric"
+      />
+      {montant.length > 0 && !isNaN(parseFloat(montant)) && (
+        <View style={st.ptsPreview}>
+          <Text style={st.ptsPreviewTxt}>Points à gagner : +{Math.round(parseFloat(montant) * 10)} pts</Text>
+        </View>
+      )}
+      <TouchableOpacity style={st.btnPrimary} onPress={handleValider}>
+        <Text style={st.btnTxt}>✅ Valider et ajouter les points</Text>
+      </TouchableOpacity>
+      <TouchableOpacity style={st.btnSecondary} onPress={reset}>
+        <Text style={st.btnSecTxt}>Annuler</Text>
+      </TouchableOpacity>
+    </View>
+  );
+
+  return (
+    <View style={st.container}>
+      <Text style={st.titre}>🏪 Caisse DSM</Text>
+      <Text style={st.sous}>Identifiez le client par sa carte fidélité</Text>
+
+      {/* Saisie manuelle */}
+      <View style={st.manuelBox}>
+        <Text style={st.label}>Saisir le numéro de carte</Text>
+        <View style={{ flexDirection: "row", gap: 8 }}>
+          <TextInput
+            style={[st.input, { flex: 1 }]}
+            placeholder="Ex: 8821"
+            placeholderTextColor="#8AAABF"
+            value={numCarteManuel}
+            onChangeText={setNumCarteManuel}
+            keyboardType="number-pad"
+            maxLength={10}
+          />
+          <TouchableOpacity style={st.btnSearch} onPress={handleSaisieManuelle}>
+            <Text style={{ fontSize: 20 }}>🔍</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      <Text style={st.ouTxt}>— ou —</Text>
+
+      {/* Scanner QR */}
+      {!scanning ? (
+        <TouchableOpacity style={st.btnScan} onPress={async () => {
+          if (!permission?.granted) await requestPermission();
+          setScanning(true);
+        }}>
+          <Text style={{ fontSize: 32, marginBottom: 8 }}>📷</Text>
+          <Text style={st.btnScanTxt}>Scanner la carte QR</Text>
+        </TouchableOpacity>
+      ) : (
+        <View style={st.cameraBox}>
+          <CameraView
+            style={{ flex: 1 }}
+            onBarcodeScanned={({ data }) => handleScan(data)}
+            barcodeScannerSettings={{ barcodeTypes: ["qr", "code128", "code39"] }}
+          />
+          <TouchableOpacity style={st.btnAnnulerScan} onPress={() => setScanning(false)}>
+            <Text style={st.btnSecTxt}>✕ Annuler le scan</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+    </View>
+  );
 }
 
-const s = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#F5F7FF" },
-  header: {
-    backgroundColor: "#05102A",
-    padding: 20,
-    paddingTop: 50,
-    alignItems: "center",
-  },
-  headerTitre: {
-    fontSize: 20,
-    color: "#FFD080",
-    fontWeight: "bold",
-    letterSpacing: 2,
-  },
-  headerSous: {
-    fontSize: 10,
-    color: "rgba(255,255,255,0.4)",
-    letterSpacing: 3,
-    marginTop: 4,
-  },
-  permTxt: { fontSize: 16, color: "#05102A", textAlign: "center", margin: 40 },
-  permBtn: {
-    backgroundColor: "#1A6FFF",
-    borderRadius: 14,
-    padding: 16,
-    marginHorizontal: 40,
-    alignItems: "center",
-  },
-  permBtnTxt: { color: "#fff", fontWeight: "bold", fontSize: 15 },
-  // Scan
-  scanContainer: { flex: 1, padding: 20 },
-  scanTitre: {
-    fontSize: 16,
-    fontWeight: "bold",
-    color: "#05102A",
-    textAlign: "center",
-    marginBottom: 16,
-  },
-  cameraBox: {
-    height: 280,
-    borderRadius: 20,
-    overflow: "hidden",
-    backgroundColor: "#000",
-    marginBottom: 16,
-  },
-  camera: { flex: 1 },
-  cameraPlaceholder: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "#1a1a2e",
-  },
-  viseur: {
-    position: "absolute",
-    top: "20%",
-    left: "20%",
-    right: "20%",
-    bottom: "20%",
-  },
-  coin: { position: "absolute", width: 30, height: 30, borderColor: "#FFD080" },
-  scanHint: {
-    position: "absolute",
-    bottom: 20,
-    alignSelf: "center",
-    color: "rgba(255,255,255,0.7)",
-    fontSize: 13,
-  },
-  scanBtn: {
-    backgroundColor: "#1A6FFF",
-    borderRadius: 16,
-    padding: 16,
-    alignItems: "center",
-    marginBottom: 16,
-  },
-  scanBtnTxt: { color: "#fff", fontWeight: "bold", fontSize: 16 },
-  ouTxt: {
-    textAlign: "center",
-    color: "#8AAABF",
-    fontSize: 12,
-    marginBottom: 12,
-  },
-  manuelBox: { flexDirection: "row", gap: 10 },
-  manuelInput: {
-    flex: 1,
-    backgroundColor: "#fff",
-    borderRadius: 14,
-    padding: 14,
-    fontSize: 16,
-    color: "#05102A",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 8,
-    elevation: 2,
-    textAlign: "center",
-    letterSpacing: 4,
-    fontWeight: "bold",
-  },
-  manuelBtn: {
-    backgroundColor: "#05102A",
-    borderRadius: 14,
-    padding: 14,
-    alignItems: "center",
-    justifyContent: "center",
-    paddingHorizontal: 20,
-  },
-  manuelBtnTxt: { color: "#fff", fontWeight: "bold", fontSize: 14 },
-  // Confirm
-  confirmContainer: { flex: 1, padding: 20 },
-  clientCard: {
-    backgroundColor: "#fff",
-    borderRadius: 20,
-    padding: 18,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 14,
-    marginBottom: 20,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.08,
-    shadowRadius: 12,
-    elevation: 4,
-  },
-  clientAvatar: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: "#1A6FFF",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  clientNom: { fontSize: 18, fontWeight: "bold", color: "#05102A" },
-  clientInfo: { fontSize: 12, color: "#8AAABF", marginTop: 2 },
-  niveauBadge: {
-    backgroundColor: "#F5A623",
-    borderRadius: 99,
-    paddingHorizontal: 12,
-    paddingVertical: 5,
-  },
-  montantLabel: {
-    fontSize: 11,
-    color: "#8AAABF",
-    letterSpacing: 1,
-    marginBottom: 8,
-  },
-  montantInput: {
-    backgroundColor: "#fff",
-    borderRadius: 16,
-    padding: 18,
-    fontSize: 28,
-    color: "#05102A",
-    textAlign: "center",
-    fontWeight: "bold",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 8,
-    elevation: 2,
-    marginBottom: 12,
-    letterSpacing: 2,
-  },
-  ptsPreview: {
-    backgroundColor: "#EEF5FF",
-    borderRadius: 12,
-    padding: 12,
-    alignItems: "center",
-    marginBottom: 16,
-  },
-  ptsPreviewTxt: { fontSize: 14, color: "#05102A" },
-  validerBtn: {
-    backgroundColor: "#1A6FFF",
-    borderRadius: 16,
-    padding: 16,
-    alignItems: "center",
-    marginBottom: 10,
-  },
-  validerBtnDisabled: { backgroundColor: "#8AAABF" },
-  validerTxt: { color: "#fff", fontWeight: "bold", fontSize: 16 },
-  annulerBtn: {
-    backgroundColor: "#F5F7FF",
-    borderRadius: 16,
-    padding: 14,
-    alignItems: "center",
-    borderWidth: 1,
-    borderColor: "#E0E8FF",
-  },
-  annulerTxt: { color: "#8AAABF", fontWeight: "bold", fontSize: 14 },
-  // Success
-  successContainer: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-    padding: 24,
-  },
-  successTitre: {
-    fontSize: 28,
-    fontWeight: "bold",
-    color: "#05102A",
-    marginBottom: 8,
-  },
-  successNom: { fontSize: 16, color: "#8AAABF", marginBottom: 24 },
-  successPtsBox: {
-    backgroundColor: "#05102A",
-    borderRadius: 22,
-    padding: 28,
-    alignItems: "center",
-    marginBottom: 16,
-    width: "100%",
-  },
-  successPtsLabel: {
-    fontSize: 12,
-    color: "rgba(255,255,255,0.5)",
-    letterSpacing: 2,
-    marginBottom: 8,
-  },
-  successPts: {
-    fontSize: 64,
-    color: "#FFD080",
-    fontWeight: "bold",
-    lineHeight: 70,
-  },
-  successPtsUnit: {
-    fontSize: 16,
-    color: "rgba(255,255,255,0.5)",
-    letterSpacing: 2,
-  },
-  successTotalBox: {
-    backgroundColor: "#fff",
-    borderRadius: 16,
-    padding: 20,
-    alignItems: "center",
-    marginBottom: 24,
-    width: "100%",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 8,
-    elevation: 2,
-  },
-  nouvelAchatBtn: {
-    backgroundColor: "#1A6FFF",
-    borderRadius: 16,
-    padding: 16,
-    alignItems: "center",
-    width: "100%",
-  },
-  nouvelAchatTxt: { color: "#fff", fontWeight: "bold", fontSize: 16 },
+const st = StyleSheet.create({
+  container: { flex: 1, backgroundColor: "#F5F7FF", padding: 20 },
+  centered: { flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: "#F5F7FF", padding: 20 },
+  titre: { fontSize: 24, fontWeight: "bold", color: "#05102A", marginBottom: 6, marginTop: 20 },
+  sous: { fontSize: 13, color: "#8AAABF", marginBottom: 24 },
+  label: { fontSize: 13, fontWeight: "bold", color: "#05102A", marginBottom: 8 },
+  input: { backgroundColor: "#fff", borderRadius: 14, padding: 14, fontSize: 16, color: "#05102A", borderWidth: 1.5, borderColor: "#E0EDFF", marginBottom: 12 },
+  manuelBox: { backgroundColor: "#fff", borderRadius: 18, padding: 18, marginBottom: 16 },
+  btnSearch: { backgroundColor: "#1A6FFF", borderRadius: 14, padding: 14, alignItems: "center", justifyContent: "center" },
+  ouTxt: { textAlign: "center", color: "#8AAABF", fontSize: 13, marginVertical: 12 },
+  btnScan: { backgroundColor: "#05102A", borderRadius: 18, padding: 30, alignItems: "center", justifyContent: "center" },
+  btnScanTxt: { color: "#FFD080", fontSize: 16, fontWeight: "bold" },
+  cameraBox: { flex: 1, borderRadius: 18, overflow: "hidden", minHeight: 300 },
+  btnAnnulerScan: { backgroundColor: "#fff", padding: 14, alignItems: "center" },
+  btnPrimary: { backgroundColor: "#1A6FFF", borderRadius: 16, padding: 16, alignItems: "center", marginTop: 8 },
+  btnTxt: { color: "#fff", fontSize: 15, fontWeight: "bold" },
+  btnSecondary: { backgroundColor: "#F0F4FF", borderRadius: 16, padding: 14, alignItems: "center", marginTop: 10 },
+  btnSecTxt: { color: "#05102A", fontSize: 14, fontWeight: "600" },
+  clientCard: { backgroundColor: "#05102A", borderRadius: 18, padding: 20, alignItems: "center", marginBottom: 20 },
+  cardEmoji: { fontSize: 40, marginBottom: 8 },
+  cardNom: { fontSize: 20, color: "#fff", fontWeight: "bold", marginBottom: 4 },
+  cardNiveau: { fontSize: 13, color: "#FFD080", marginBottom: 4 },
+  cardCarte: { fontSize: 12, color: "rgba(255,255,255,0.5)", letterSpacing: 2 },
+  ptsPreview: { backgroundColor: "#EAF2FF", borderRadius: 12, padding: 12, marginBottom: 12, alignItems: "center" },
+  ptsPreviewTxt: { color: "#1A6FFF", fontWeight: "bold", fontSize: 15 },
+  successTitre: { fontSize: 26, fontWeight: "bold", color: "#05102A", marginTop: 16 },
+  successNom: { fontSize: 18, color: "#1A6FFF", marginTop: 8 },
+  successPts: { fontSize: 36, color: "#F5A623", fontWeight: "bold", marginTop: 8 },
+  successTotal: { fontSize: 14, color: "#8AAABF", marginTop: 4, marginBottom: 24 },
 });
