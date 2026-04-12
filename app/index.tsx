@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
+  Image,
   Linking,
   Modal,
   Platform,
@@ -100,7 +101,7 @@ async function odooGetProduits(): Promise<any[]> {
   await odooAuthAdmin();
   const result = await odooCall("product.template", "search_read",
     [[["sale_ok", "=", true], ["active", "=", true]]],
-    { fields: ["name", "list_price", "description_sale", "categ_id", "qty_available"], limit: 100 }
+    { fields: ["name", "list_price", "description_sale", "categ_id", "qty_available", "image_128"], limit: 100 }
   );
   return result || [];
 }
@@ -481,7 +482,10 @@ function DetailLivre({ livre, onAchat, onBack }: { livre: any; onAchat: () => vo
       <View style={s.detailHeader}><TouchableOpacity onPress={onBack}><Text style={{ color: "#FFD080", fontSize: 18 }}>‹ Retour</Text></TouchableOpacity></View>
       <ScrollView>
         <View style={s.detailHero}>
-          <Text style={s.detailEmoji}>{livre.emoji}</Text>
+          {livre.image
+            ? <Image source={{ uri: livre.image }} style={{ width: 120, height: 160, borderRadius: 16, marginBottom: 12 }} resizeMode="cover" />
+            : <Text style={s.detailEmoji}>{livre.emoji}</Text>
+          }
           <Text style={s.detailTitre}>{livre.titre}</Text>
           <Text style={s.detailAuteur}>{livre.auteur}</Text>
           <View style={{ flexDirection: "row", gap: 4, marginTop: 8 }}>
@@ -705,6 +709,7 @@ function OngletBoutique({ client, onAchat, onValider }: { client: any; onAchat: 
           genre: p.categ_id?.[1]?.toLowerCase() || "roman",
           desc: p.description_sale || p.name,
           note: 4.5, odoo_id: p.id, stock: p.qty_available || 0,
+          image: p.image_128 ? `data:image/png;base64,${p.image_128}` : null,
         })));
         setSrc("odoo"); setLastUpdate(new Date().toLocaleTimeString("fr-FR"));
       } else {
@@ -801,7 +806,10 @@ function OngletBoutique({ client, onAchat, onValider }: { client: any; onAchat: 
           <View style={s.livresGrid}>
             {filtres.map((l, i) => (
               <TouchableOpacity key={i} style={s.livreCard} onPress={() => setDetail(l)}>
-                <Text style={s.livreEmoji}>{l.emoji}</Text>
+                {l.image 
+                  ? <Image source={{ uri: l.image }} style={{ width: 70, height: 95, borderRadius: 10, alignSelf: "center", marginBottom: 8 }} resizeMode="cover" />
+                  : <Text style={s.livreEmoji}>{l.emoji}</Text>
+                }
                 <Text style={s.livreTitre} numberOfLines={2}>{l.titre}</Text>
                 <Text style={s.livreAuteur} numberOfLines={1}>{l.auteur}</Text>
                 {l.stock !== undefined && l.stock <= 3 && l.stock > 0 && <Text style={{ fontSize: 9, color: "#E74C3C", textAlign: "center" }}>⚠️ Plus que {l.stock} en stock</Text>}
