@@ -323,30 +323,39 @@ function EcranConnexion({ onLogin }: { onLogin: (c: any) => void }) {
     if (!email || !mdp) { setErreur("❌ Remplissez tous les champs"); return; }
     setLoading(true); setErreur("");
     try {
-      // Essai 1: login direct avec ce qui est saisi
-      let result = await odooAuth(email, mdp);
+      console.log("🔄 Connexion vers:", ODOO_URL);
+      console.log("🔄 Login:", email);
 
-      // Essai 2: chercher le login par email
+      // Essai 1: login direct
+      let result = await odooAuth(email, mdp);
+      console.log("🔄 Essai 1 result:", result?.uid);
+
+      // Essai 2: chercher par email
       if (!result?.uid) {
+        console.log("🔄 Essai 2: recherche par email...");
         const adminOk = await odooAuthAdmin();
+        console.log("🔄 Admin auth:", adminOk);
         if (adminOk) {
           const users = await odooCall("res.users", "search_read",
             [[["email", "=", email]]],
             { fields: ["login", "partner_id"], limit: 1 }
           );
+          console.log("🔄 Users trouvés:", users);
           if (users?.length > 0) {
             result = await odooAuth(users[0].login, mdp);
+            console.log("🔄 Essai 2 result:", result?.uid);
           }
         }
       }
 
       if (result?.uid) {
+        console.log("✅ Connecté! UID:", result.uid, "Partner:", result.partner_id);
         await odooAuthAdmin();
         const partner = await odooGetClient(result.partner_id);
+        console.log("✅ Partner:", partner);
         if (partner) {
           onLogin({ ...partner, odoo_uid: result.uid, email, mdp });
         } else {
-          // Creer le profil client automatiquement
           const numCarte = String(Math.floor(1000 + Math.random() * 9000));
           const partnerId = await odooCall("res.partner", "create", [{
             name: email.split("@")[0],
@@ -363,9 +372,13 @@ function EcranConnexion({ onLogin }: { onLogin: (c: any) => void }) {
           }
         }
       } else {
+        console.log("❌ Connexion échouée");
         setErreur("❌ Login ou mot de passe incorrect");
       }
-    } catch (e) { setErreur("❌ Erreur de connexion"); }
+    } catch (e) {
+      console.log("❌ Erreur:", e);
+      setErreur("❌ Erreur: " + String(e));
+    }
     setLoading(false);
   };
 
@@ -396,7 +409,7 @@ function EcranConnexion({ onLogin }: { onLogin: (c: any) => void }) {
       } else {
         setErreur("❌ Erreur lors de l'inscription");
       }
-    } catch { setErreur("❌ Erreur de connexion"); }
+    } catch { setErreur("❌ Erreur: " + String(e)); }
     setLoading(false);
   };
 
