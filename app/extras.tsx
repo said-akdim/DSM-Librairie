@@ -1,4 +1,5 @@
 import * as Location from "expo-location";
+import { ODOO_URL, ODOO_DB } from "./config";
 import { useEffect, useState } from "react";
 import {
   ActivityIndicator, Alert, Linking, ScrollView,
