@@ -1,195 +1,208 @@
+#!/usr/bin/env python3
 """
-API Odoo 18 — Mise à jour Prix Achat & Éditeur
+Script Odoo 18 — Prix Achat & Éditeur
 DSM Librairie
+
+Utilisation :
+  python odoo_produits.py lister
+  python odoo_produits.py chercher "Astérix"
+  python odoo_produits.py update 42 --prix 9.99 --editeur "Gallimard"
+  python odoo_produits.py batch produits.csv
 """
 
+import argparse
+import csv
 import json
+import sys
 import urllib.request
-import urllib.error
-from typing import Optional
+from getpass import getpass
 
 ODOO_URL = "http://localhost:8069"
 ODOO_DB  = "Dsm"
 
-
 # ─────────────────────────────────────────────
-# Connexion
-# ─────────────────────────────────────────────
-
-class OdooSession:
-    def __init__(self, url: str = ODOO_URL, db: str = ODOO_DB):
-        self.url = url
-        self.db  = db
-        self.uid: Optional[int] = None
-        self.cookie = ""
-
-    def login(self, login: str, password: str) -> int:
-        payload = {
-            "jsonrpc": "2.0", "method": "call", "id": 1,
-            "params": {"db": self.db, "login": login, "password": password},
-        }
-        req = urllib.request.Request(
-            f"{self.url}/web/session/authenticate",
-            data=json.dumps(payload).encode(),
-            headers={"Content-Type": "application/json"},
-        )
-        with urllib.request.urlopen(req) as resp:
-            self.cookie = resp.headers.get("Set-Cookie", "")
-            data = json.loads(resp.read())
-
-        if data.get("result", {}).get("uid"):
-            self.uid = data["result"]["uid"]
-            return self.uid
-        raise PermissionError("Authentification échouée")
-
-    def _rpc(self, model: str, method: str, args: list, kwargs: dict = None) -> any:
-        if not self.uid:
-            raise RuntimeError("Non connecté — appelez login() d'abord")
-
-        payload = {
-            "jsonrpc": "2.0", "method": "call", "id": 2,
-            "params": {"model": model, "method": method,
-                       "args": args, "kwargs": kwargs or {}},
-        }
-        req = urllib.request.Request(
-            f"{self.url}/web/dataset/call_kw",
-            data=json.dumps(payload).encode(),
-            headers={
-                "Content-Type": "application/json",
-                "Cookie": self.cookie,
-            },
-        )
-        with urllib.request.urlopen(req) as resp:
-            data = json.loads(resp.read())
-
-        if "error" in data:
-            msg = data["error"].get("data", {}).get("message") or data["error"].get("message")
-            raise RuntimeError(f"Erreur Odoo : {msg}")
-
-        return data["result"]
-
-
-# ─────────────────────────────────────────────
-# Lecture
+# Connexion JSON-RPC
 # ─────────────────────────────────────────────
 
-FIELDS_PRODUIT = [
-    "name", "standard_price", "list_price",
-    "dsm_editeur", "categ_id", "default_code", "barcode",
-]
+cookie = ""
 
+def login(url, db, user, password):
+    global cookie
+    data = _post(url, "/web/session/authenticate",
+                 {"db": db, "login": user, "password": password},
+                 set_cookie=True)
+    uid = data.get("uid")
+    if not uid:
+        print("❌ Connexion échouée (identifiants incorrects)")
+        sys.exit(1)
+    return uid
 
-def get_produits(session: OdooSession, domain: list = None, limit: int = 80) -> list[dict]:
-    """Retourne les produits avec prix d'achat et éditeur."""
-    return session._rpc(
-        "product.template", "search_read",
-        [domain or []],
-        {"fields": FIELDS_PRODUIT, "limit": limit, "order": "name asc"},
+def _post(url, path, params, set_cookie=False):
+    global cookie
+    payload = json.dumps({
+        "jsonrpc": "2.0", "method": "call", "id": 1,
+        "params": params,
+    }).encode()
+    req = urllib.request.Request(
+        url + path,
+        data=payload,
+        headers={
+            "Content-Type": "application/json",
+            **( {"Cookie": cookie} if not set_cookie else {} ),
+        },
     )
+    with urllib.request.urlopen(req) as resp:
+        if set_cookie:
+            cookie = resp.headers.get("Set-Cookie", "")
+        result = json.loads(resp.read())
+    if "error" in result:
+        msg = result["error"].get("data", {}).get("message") or result["error"]["message"]
+        print(f"❌ Erreur Odoo : {msg}")
+        sys.exit(1)
+    return result["result"]
 
-
-def get_produit_by_id(session: OdooSession, product_id: int) -> dict:
-    """Retourne un produit par son ID."""
-    results = session._rpc(
-        "product.template", "search_read",
-        [[["id", "=", product_id]]],
-        {"fields": FIELDS_PRODUIT, "limit": 1},
-    )
-    if not results:
-        raise ValueError(f"Produit #{product_id} introuvable")
-    return results[0]
-
-
-def rechercher_produits(session: OdooSession, terme: str, limit: int = 40) -> list[dict]:
-    """Recherche par nom, référence interne ou code-barres."""
-    domain = [
-        "|", "|",
-        ["name", "ilike", terme],
-        ["default_code", "ilike", terme],
-        ["barcode", "=", terme],
-    ]
-    return session._rpc(
-        "product.template", "search_read",
-        [domain],
-        {"fields": FIELDS_PRODUIT, "limit": limit, "order": "name asc"},
-    )
-
+def rpc(url, model, method, args, kwargs=None):
+    return _post(url, "/web/dataset/call_kw", {
+        "model": model, "method": method,
+        "args": args, "kwargs": kwargs or {},
+    })
 
 # ─────────────────────────────────────────────
-# Mise à jour
+# Affichage
 # ─────────────────────────────────────────────
 
-def update_prix_achat(session: OdooSession, product_id: int, standard_price: float) -> bool:
-    """Met à jour le prix d'achat (standard_price) d'un produit."""
-    if standard_price < 0:
-        raise ValueError("Le prix d'achat ne peut pas être négatif")
-    return session._rpc(
-        "product.template", "write",
-        [[product_id], {"standard_price": standard_price}],
-    )
+FIELDS = ["id", "name", "default_code", "standard_price", "list_price", "dsm_editeur"]
 
+def afficher(produits):
+    if not produits:
+        print("Aucun produit trouvé.")
+        return
+    print(f"\n{'ID':<6} {'Référence':<14} {'Prix achat':>10} {'Prix vente':>10}  {'Éditeur':<20}  Nom")
+    print("─" * 90)
+    for p in produits:
+        editeur = p.get("dsm_editeur") or "-"
+        ref     = p.get("default_code") or "-"
+        print(f"{p['id']:<6} {ref:<14} {p['standard_price']:>10.2f} {p['list_price']:>10.2f}  {editeur:<20}  {p['name']}")
+    print(f"\n{len(produits)} produit(s)\n")
 
-def update_editeur(session: OdooSession, product_id: int, dsm_editeur: str) -> bool:
-    """Met à jour l'éditeur (dsm_editeur) d'un produit."""
-    return session._rpc(
-        "product.template", "write",
-        [[product_id], {"dsm_editeur": dsm_editeur}],
-    )
+# ─────────────────────────────────────────────
+# Commandes
+# ─────────────────────────────────────────────
 
+def cmd_lister(args, url):
+    produits = rpc(url, "product.template", "search_read",
+                   [[["sale_ok", "=", True]]],
+                   {"fields": FIELDS, "limit": args.limite, "order": "name asc"})
+    afficher(produits)
 
-def update_produit(
-    session: OdooSession,
-    product_id: int,
-    standard_price: float = None,
-    dsm_editeur: str = None,
-) -> bool:
-    """Met à jour prix d'achat ET/OU éditeur en une seule requête."""
+def cmd_chercher(args, url):
+    terme = args.terme
+    domain = ["|", "|",
+              ["name", "ilike", terme],
+              ["default_code", "ilike", terme],
+              ["barcode", "=", terme]]
+    produits = rpc(url, "product.template", "search_read",
+                   [domain],
+                   {"fields": FIELDS, "limit": 40, "order": "name asc"})
+    afficher(produits)
+
+def cmd_update(args, url):
     vals = {}
-    if standard_price is not None:
-        if standard_price < 0:
-            raise ValueError("Le prix d'achat ne peut pas être négatif")
-        vals["standard_price"] = standard_price
-    if dsm_editeur is not None:
-        vals["dsm_editeur"] = dsm_editeur
+    if args.prix is not None:
+        if args.prix < 0:
+            print("❌ Le prix d'achat ne peut pas être négatif")
+            sys.exit(1)
+        vals["standard_price"] = args.prix
+    if args.editeur is not None:
+        vals["dsm_editeur"] = args.editeur
     if not vals:
-        return True
-    return session._rpc("product.template", "write", [[product_id], vals])
+        print("⚠️  Rien à mettre à jour (--prix ou --editeur requis)")
+        sys.exit(1)
 
+    ok = rpc(url, "product.template", "write", [[args.id], vals])
+    if ok:
+        print(f"✅ Produit #{args.id} mis à jour : {vals}")
+    else:
+        print("❌ Échec de la mise à jour")
 
-def update_produits_batch(
-    session: OdooSession,
-    product_ids: list[int],
-    standard_price: float = None,
-    dsm_editeur: str = None,
-) -> bool:
-    """Mise à jour en lot : applique les mêmes valeurs à plusieurs produits."""
-    if not product_ids:
-        return True
-    vals = {}
-    if standard_price is not None:
-        if standard_price < 0:
-            raise ValueError("Le prix d'achat ne peut pas être négatif")
-        vals["standard_price"] = standard_price
-    if dsm_editeur is not None:
-        vals["dsm_editeur"] = dsm_editeur
-    if not vals:
-        return True
-    return session._rpc("product.template", "write", [product_ids, vals])
+def cmd_batch(args, url):
+    """
+    Lit un CSV avec colonnes : id, prix_achat, editeur
+    Exemple CSV :
+      id,prix_achat,editeur
+      1,9.99,Gallimard
+      2,12.50,Hachette
+    """
+    try:
+        with open(args.fichier, newline="", encoding="utf-8") as f:
+            reader = csv.DictReader(f)
+            lignes = list(reader)
+    except FileNotFoundError:
+        print(f"❌ Fichier introuvable : {args.fichier}")
+        sys.exit(1)
 
+    ok_count = 0
+    for ligne in lignes:
+        pid = int(ligne["id"])
+        vals = {}
+        if ligne.get("prix_achat"):
+            vals["standard_price"] = float(ligne["prix_achat"].replace(",", "."))
+        if ligne.get("editeur"):
+            vals["dsm_editeur"] = ligne["editeur"].strip()
+        if not vals:
+            continue
+        ok = rpc(url, "product.template", "write", [[pid], vals])
+        status = "✅" if ok else "❌"
+        print(f"{status} Produit #{pid} → {vals}")
+        if ok:
+            ok_count += 1
+
+    print(f"\n{ok_count}/{len(lignes)} mis à jour avec succès.")
 
 # ─────────────────────────────────────────────
-# Exemple d'utilisation
+# Entrée principale
 # ─────────────────────────────────────────────
+
+def main():
+    parser = argparse.ArgumentParser(
+        description="Script Odoo 18 — Prix Achat & Éditeur — DSM Librairie",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog=__doc__,
+    )
+    parser.add_argument("--url",      default=ODOO_URL, help="URL Odoo (défaut: %(default)s)")
+    parser.add_argument("--db",       default=ODOO_DB,  help="Base de données (défaut: %(default)s)")
+    parser.add_argument("--user",     default="admin",  help="Utilisateur Odoo")
+    parser.add_argument("--password",                   help="Mot de passe (demandé si absent)")
+
+    sub = parser.add_subparsers(dest="cmd", required=True)
+
+    # lister
+    p_list = sub.add_parser("lister", help="Lister les produits")
+    p_list.add_argument("--limite", type=int, default=80, help="Nombre max de résultats")
+
+    # chercher
+    p_search = sub.add_parser("chercher", help="Rechercher un produit")
+    p_search.add_argument("terme", help="Nom, référence ou code-barres")
+
+    # update
+    p_upd = sub.add_parser("update", help="Mettre à jour un produit")
+    p_upd.add_argument("id",      type=int,  help="ID du produit")
+    p_upd.add_argument("--prix",  type=float, help="Nouveau prix d'achat")
+    p_upd.add_argument("--editeur",           help="Nouvel éditeur")
+
+    # batch
+    p_batch = sub.add_parser("batch", help="Mise à jour en lot depuis un CSV")
+    p_batch.add_argument("fichier", help="Chemin vers le fichier CSV (colonnes: id, prix_achat, editeur)")
+
+    args = parser.parse_args()
+
+    password = args.password or getpass(f"Mot de passe Odoo ({args.user}) : ")
+    login(args.url, args.db, args.user, password)
+
+    if   args.cmd == "lister":   cmd_lister(args, args.url)
+    elif args.cmd == "chercher": cmd_chercher(args, args.url)
+    elif args.cmd == "update":   cmd_update(args, args.url)
+    elif args.cmd == "batch":    cmd_batch(args, args.url)
 
 if __name__ == "__main__":
-    s = OdooSession(url="http://localhost:8069", db="Dsm")
-    s.login("admin", "admin")
-
-    # Lire les produits
-    produits = get_produits(s, limit=5)
-    for p in produits:
-        print(f"[{p['id']}] {p['name']} | Achat: {p['standard_price']} | Éditeur: {p['dsm_editeur']}")
-
-    # Mettre à jour un produit
-    ok = update_produit(s, product_id=1, standard_price=9.99, dsm_editeur="Gallimard")
-    print("Mise à jour :", "OK" if ok else "Échec")
+    main()
