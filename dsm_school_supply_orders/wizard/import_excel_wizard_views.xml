@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_import_excel_wizard_form" model="ir.ui.view">
+        <field name="name">dsm.import.excel.wizard.form</field>
+        <field name="model">dsm.import.excel.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Import Excel — Fournitures Scolaires">
+                <group string="Fichier à importer">
+                    <field name="session_id" readonly="1"/>
+                    <field name="excel_file" widget="binary" filename="excel_filename"/>
+                    <field name="excel_filename" invisible="1"/>
+                </group>
+                <group string="Structure du fichier">
+                    <field name="skip_rows"/>
+                    <field name="col_barcode"/>
+                    <field name="col_school"/>
+                    <field name="col_qty"/>
+                    <field name="use_odoo_history"/>
+                </group>
+                <group string="Format attendu (exemple)">
+                    <div colspan="2" style="padding:8px 0">
+                        <table style="border-collapse:collapse;width:100%;font-size:13px">
+                            <tr style="background:#e9ecef;font-weight:bold">
+                                <td style="border:1px solid #ccc;padding:6px 10px">A — EAN13</td>
+                                <td style="border:1px solid #ccc;padding:6px 10px">B — École</td>
+                                <td style="border:1px solid #ccc;padding:6px 10px">C — Qté N-1</td>
+                            </tr>
+                            <tr>
+                                <td style="border:1px solid #ccc;padding:6px 10px">9782070413812</td>
+                                <td style="border:1px solid #ccc;padding:6px 10px">Lycée Ibn Sina</td>
+                                <td style="border:1px solid #ccc;padding:6px 10px">50</td>
+                            </tr>
+                            <tr style="background:#f8f9fa">
+                                <td style="border:1px solid #ccc;padding:6px 10px">9782011354594</td>
+                                <td style="border:1px solid #ccc;padding:6px 10px">Collège Al Farabi</td>
+                                <td style="border:1px solid #ccc;padding:6px 10px">30</td>
+                            </tr>
+                        </table>
+                        <p style="color:#6c757d;margin-top:8px;font-size:12px">
+                            <b>Formule :</b> Qté estimée = Qté N-1 − Stock actuel (minimum 0)
+                        </p>
+                    </div>
+                </group>
+                <footer>
+                    <button name="action_import" type="object"
+                            string="Importer" class="btn-primary"/>
+                    <button string="Annuler" class="btn-secondary" special="cancel"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+</odoo>
