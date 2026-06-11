@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <menuitem id="menu_school_supply_root"
+              name="Commandes Scolaires"
+              parent="purchase.menu_purchase_root"
+              sequence="50"/>
+
+    <menuitem id="menu_school_supply_sessions"
+              name="Sessions de commande"
+              parent="menu_school_supply_root"
+              action="action_school_supply_session"
+              sequence="10"/>
+</odoo>
