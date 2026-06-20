@@ -5,3 +5,7 @@ access_school_supply_line_manager,dsm.school.supply.line manager,model_dsm_schoo
 access_school_supply_line_user,dsm.school.supply.line user,model_dsm_school_supply_line,purchase.group_purchase_user,1,1,1,1
 access_import_excel_wizard_manager,dsm.import.excel.wizard manager,model_dsm_import_excel_wizard,purchase.group_purchase_manager,1,1,1,1
 access_import_excel_wizard_user,dsm.import.excel.wizard user,model_dsm_import_excel_wizard,purchase.group_purchase_user,1,1,1,1
+access_liste_scolaire_manager,dsm.liste.scolaire manager,model_dsm_liste_scolaire,purchase.group_purchase_manager,1,1,1,1
+access_liste_scolaire_user,dsm.liste.scolaire user,model_dsm_liste_scolaire,purchase.group_purchase_user,1,1,1,1
+access_titre_adopte_manager,dsm.titre.adopte manager,model_dsm_titre_adopte,purchase.group_purchase_manager,1,1,1,1
+access_titre_adopte_user,dsm.titre.adopte user,model_dsm_titre_adopte,purchase.group_purchase_user,1,1,1,1

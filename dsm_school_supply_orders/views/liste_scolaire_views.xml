@@ -1,0 +1,154 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!-- ═══════════════════════════════════════════════════════════════
+         Vue liste — dsm.liste.scolaire
+    ════════════════════════════════════════════════════════════════════ -->
+    <record id="view_liste_scolaire_list" model="ir.ui.view">
+        <field name="name">dsm.liste.scolaire.list</field>
+        <field name="model">dsm.liste.scolaire</field>
+        <field name="arch" type="xml">
+            <list string="Listes scolaires adoptées"
+                  decoration-muted="state == 'brouillon'"
+                  decoration-info="state == 'validee'"
+                  decoration-success="state == 'commande'">
+                <field name="name"/>
+                <field name="ecole_nom"/>
+                <field name="annee_scolaire"/>
+                <field name="titre_count" string="Titres"/>
+                <field name="po_count" string="Bons de commande"/>
+                <field name="state" widget="badge"
+                       decoration-secondary="state == 'brouillon'"
+                       decoration-info="state == 'validee'"
+                       decoration-success="state == 'commande'"/>
+            </list>
+        </field>
+    </record>
+
+    <!-- ═══════════════════════════════════════════════════════════════
+         Vue formulaire — dsm.liste.scolaire
+    ════════════════════════════════════════════════════════════════════ -->
+    <record id="view_liste_scolaire_form" model="ir.ui.view">
+        <field name="name">dsm.liste.scolaire.form</field>
+        <field name="model">dsm.liste.scolaire</field>
+        <field name="arch" type="xml">
+            <form string="Liste scolaire adoptée">
+                <header>
+                    <button name="action_valider" type="object"
+                            string="✅ Valider la liste"
+                            class="btn-primary"
+                            invisible="state != 'brouillon'"/>
+                    <button name="action_recompute_stock" type="object"
+                            string="🔄 Recalculer le stock"
+                            invisible="state == 'brouillon'"/>
+                    <button name="action_creer_bons_commande" type="object"
+                            string="📦 Créer bons de commande"
+                            class="btn-primary"
+                            invisible="state != 'validee'"/>
+                    <button name="action_view_purchase_orders" type="object"
+                            string="Voir les bons de commande"
+                            invisible="po_count == 0"/>
+                    <button name="action_reset_brouillon" type="object"
+                            string="Remettre en brouillon"
+                            invisible="state == 'brouillon'"/>
+                    <field name="state" widget="statusbar"
+                           statusbar_visible="brouillon,validee,commande"/>
+                </header>
+
+                <sheet>
+                    <div class="oe_button_box" name="button_box">
+                        <button class="oe_stat_button" type="object"
+                                name="action_view_purchase_orders"
+                                icon="fa-shopping-cart"
+                                invisible="po_count == 0">
+                            <field name="po_count" widget="statinfo"
+                                   string="Bons de commande"/>
+                        </button>
+                        <button class="oe_stat_button" type="object"
+                                name="action_recompute_stock"
+                                icon="fa-refresh">
+                            <field name="titre_count" widget="statinfo"
+                                   string="Titres adoptés"/>
+                        </button>
+                    </div>
+
+                    <div class="oe_title">
+                        <h1>
+                            <field name="name" placeholder="Référence liste…"/>
+                        </h1>
+                    </div>
+
+                    <group>
+                        <group string="Identification">
+                            <field name="ecole_nom" placeholder="Nom de l'école…"/>
+                            <field name="annee_scolaire"/>
+                        </group>
+                    </group>
+
+                    <notebook>
+                        <page string="Titres adoptés" name="titres">
+                            <list name="titres_list" editable="bottom"
+                                  decoration-info="qty_estimation &gt; 0"
+                                  decoration-muted="qty_estimation == 0">
+
+                                <field name="product_id" options="{'no_create': True}"/>
+                                <field name="editeur" readonly="1" optional="show"/>
+                                <field name="distributeur_id"/>
+                                <field name="qty_besoin" string="Qté demandée"/>
+                                <field name="qty_stock_reel" readonly="1"
+                                       string="Stock réel"
+                                       sum="Total stock"/>
+                                <field name="qty_reserved" readonly="1"
+                                       string="Qté réservée"
+                                       sum="Total réservé"/>
+                                <field name="qty_disponible" readonly="1"
+                                       string="Disponible"
+                                       sum="Total disponible"/>
+                                <field name="qty_estimation" readonly="1"
+                                       string="Estimation commande"
+                                       sum="Total estimé"/>
+                                <field name="qty_commander"
+                                       string="Qté à commander"
+                                       sum="Total commandé"/>
+                                <field name="prix_achat" string="Prix achat HT"
+                                       optional="show"/>
+                                <button name="action_commander_ligne"
+                                        type="object"
+                                        string="Commander"
+                                        icon="fa-shopping-cart"
+                                        class="btn-primary btn-sm"
+                                        title="Créer un bon de commande pour ce titre"/>
+                            </list>
+                        </page>
+                        <page string="Notes" name="notes">
+                            <field name="notes" placeholder="Notes internes…"/>
+                        </page>
+                    </notebook>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <!-- ═══════════════════════════════════════════════════════════════
+         Action principale
+    ════════════════════════════════════════════════════════════════════ -->
+    <record id="action_liste_scolaire" model="ir.actions.act_window">
+        <field name="name">Listes scolaires adoptées</field>
+        <field name="res_model">dsm.liste.scolaire</field>
+        <field name="view_mode">list,form</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                Créer une nouvelle liste scolaire adoptée
+            </p>
+            <p>
+                Saisissez les titres adoptés par école avec leur distributeur.
+                Le système calcule le stock réel, les quantités réservées
+                et l'estimation de commande par titre.
+                Utilisez le bouton <b>Commander</b> sur chaque ligne pour générer
+                un bon de commande, ou <b>Créer bons de commande</b> pour tout
+                regrouper par distributeur en une seule action.
+            </p>
+        </field>
+    </record>
+
+</odoo>

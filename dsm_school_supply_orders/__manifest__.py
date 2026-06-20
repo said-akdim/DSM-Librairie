@@ -1,6 +1,6 @@
 {
     'name': 'DSM - Commandes Fournitures Scolaires',
-    'version': '18.0.1.0.0',
+    'version': '18.0.2.0.0',
     'category': 'Purchase',
     'summary': 'Import Excel EAN13 par école → pré-bons de commande fournisseurs',
     'description': """
@@ -17,6 +17,7 @@ Workflow :
         'security/ir.model.access.csv',
         'wizard/import_excel_wizard_views.xml',
         'views/school_supply_session_views.xml',
+        'views/liste_scolaire_views.xml',
         'views/menu.xml',
     ],
     'installable': True,

@@ -10,4 +10,10 @@
               parent="menu_school_supply_root"
               action="action_school_supply_session"
               sequence="10"/>
+
+    <menuitem id="menu_liste_scolaire"
+              name="Listes scolaires adoptées"
+              parent="menu_school_supply_root"
+              action="action_liste_scolaire"
+              sequence="20"/>
 </odoo>
