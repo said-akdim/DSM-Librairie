@@ -27,14 +27,9 @@ import {
   OngletSuiviCommandes,
 } from "./extras";
 
-/* ══════════════════════════════════════
-   ⚠️ REMPLACEZ PAR VOTRE IP MAC
-══════════════════════════════════════ */
-// ⚠️ IP de votre Mac — lancez update-ip.sh pour mettre à jour automatiquement
-const IP_MAC = "192.168.100.52";
 const IS_WEB = typeof window !== "undefined" && window?.location?.hostname === "localhost";
-const ODOO_URL = IS_WEB ? "http://localhost:8069" : `http://${IP_MAC}:8069`;
-const WS_URL = IS_WEB ? "ws://localhost:8090" : `ws://${IP_MAC}:8090`;
+const ODOO_URL = IS_WEB ? "http://localhost:8069" : "http://94.130.90.253:9069";
+const WS_URL = IS_WEB ? "ws://localhost:8090" : "ws://94.130.90.253:8090";
 const ODOO_DB = "Dsm";
 
 /* ══════════════════════════════════════

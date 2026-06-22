@@ -11,9 +11,6 @@ import {
   View,
 } from "react-native";
 
-const ODOO_URL = "http://192.168.100.49:8069";
-const ODOO_DB = "Dsm";
-
 let caissCookies = "";
 
 async function caissAuthAdmin(): Promise<boolean> {

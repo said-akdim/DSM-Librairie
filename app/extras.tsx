@@ -6,12 +6,6 @@ import {
   StyleSheet, Text, TextInput, TouchableOpacity, View,
 } from "react-native";
 
-/* ══════════════════════════════════════
-   CONFIG ODOO
-══════════════════════════════════════ */
-const ODOO_URL = "http://192.168.100.49:8069";
-const ODOO_DB = "Dsm";
-
 async function odooAuthAdmin(): Promise<boolean> {
   try {
     const res = await fetch(`${ODOO_URL}/web/session/authenticate`, {
