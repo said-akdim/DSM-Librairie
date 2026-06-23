@@ -30,7 +30,7 @@ import {
 const IS_WEB = typeof window !== "undefined" && window?.location?.hostname === "localhost";
 const ODOO_URL = IS_WEB ? "http://localhost:8069" : "http://94.130.90.253:9069";
 const WS_URL = IS_WEB ? "ws://localhost:8090" : "ws://94.130.90.253:8090";
-const ODOO_DB = "Dsm";
+const ODOO_DB = "agora-prod";
 
 /* ══════════════════════════════════════
    ODOO 18 API

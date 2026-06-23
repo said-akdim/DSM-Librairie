@@ -16,6 +16,6 @@ export const WS_URL = Platform.OS === "web"
   ? "ws://localhost:8090"
   : "ws://94.130.90.253:8090";
 
-export const ODOO_DB = "Dsm";
+export const ODOO_DB = "agora-prod";
 
 export default { ODOO_URL, WS_URL, ODOO_DB };
