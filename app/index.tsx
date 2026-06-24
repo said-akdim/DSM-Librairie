@@ -498,7 +498,13 @@ function DetailLivre({ livre, onAchat, onBack }: { livre: any; onAchat: () => vo
             </View>
           </View>
           <TouchableOpacity style={s.detailAcheterBtn} onPress={onAchat}><Text style={s.detailAcheterTxt}>🛍️ Ajouter au panier</Text></TouchableOpacity>
-          <TouchableOpacity style={s.detailWhatsappBtn} onPress={() => Linking.openURL(`whatsapp://send?text=Je recommande "${livre.titre}" à la Librairie DSM — ${livre.prix?.toFixed(2)} DH 📚`)}>
+          <TouchableOpacity style={s.detailWhatsappBtn} onPress={async () => {
+            const text = encodeURIComponent(`Je recommande "${livre.titre}" à la Librairie DSM — ${livre.prix?.toFixed(2)} DH 📚`);
+            const url = IS_WEB ? `https://wa.me/?text=${text}` : `whatsapp://send?text=${text}`;
+            const ok = await Linking.canOpenURL(url);
+            if (ok) Linking.openURL(url);
+            else Alert.alert("WhatsApp non disponible", "Veuillez installer WhatsApp.");
+          }}>
             <Text style={s.detailWhatsappTxt}>📱 Partager sur WhatsApp</Text>
           </TouchableOpacity>
         </View>
@@ -965,8 +971,11 @@ function OngletNotifs({ client }: { client: any }) {
 ══════════════════════════════════════ */
 function OngletProfil({ client, onDeconnexion, wsOk }: { client: any; onDeconnexion: () => void; wsOk: boolean }) {
   const partagerCarte = async () => {
-    try { await Linking.openURL(`whatsapp://send?text=Ma carte DSM 📚%0AN° : ${client.dsm_num_carte}%0ANiveau : ${client.dsm_niveau}%0APoints : ${client.dsm_points} pts`); }
-    catch { Alert.alert("WhatsApp non disponible"); }
+    const text = encodeURIComponent(`Ma carte DSM 📚\nN° : ${client.dsm_num_carte}\nNiveau : ${client.dsm_niveau}\nPoints : ${client.dsm_points} pts`);
+    const url = IS_WEB ? `https://wa.me/?text=${text}` : `whatsapp://send?text=${text}`;
+    const ok = await Linking.canOpenURL(url);
+    if (ok) Linking.openURL(url);
+    else Alert.alert("WhatsApp non disponible", "Veuillez installer WhatsApp.");
   };
 
   const prenom = client.name?.split(" ")[0] || "";
