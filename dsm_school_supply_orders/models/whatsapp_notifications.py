@@ -28,6 +28,7 @@ def _envoyer_template(phone, template_name, params):
     """Envoie un template WhatsApp approuvé Meta avec ses paramètres body."""
     to = _normaliser_telephone(phone)
     if not to:
+        _logger.warning("WhatsApp: numéro invalide '%s'", phone)
         return False
     try:
         res = requests.post(
@@ -56,9 +57,9 @@ def _envoyer_template(phone, template_name, params):
             timeout=10,
         )
         if not res.ok:
-            _logger.warning("WhatsApp template '%s' error %s: %s", template_name, res.status_code, res.text)
+            _logger.warning("WhatsApp '%s' → %s: %s", template_name, res.status_code, res.text)
         else:
-            _logger.info("WhatsApp template '%s' envoyé à %s", template_name, to)
+            _logger.info("WhatsApp '%s' envoyé à %s", template_name, to)
         return res.ok
     except Exception as e:
         _logger.warning("WhatsApp send failed: %s", e)
@@ -75,15 +76,14 @@ class SaleOrderWhatsApp(models.Model):
             phone = partner.mobile or partner.phone
             if not phone:
                 continue
-            # Template sms_cmd_client_ordered :
-            # "Votre commande No {{1}} est en attente de réception... {{2}}"
-            titres = "\n".join(
-                f"- {name}" for name in order.order_line.mapped("product_id.name")
-            )
+            # Template sms_cmd_client_to_order :
+            # "Votre commande a été bien reçue et enregistrée sous le No : {{1}}.
+            #  - {{2}}"
+            titres = "\n- ".join(order.order_line.mapped("product_id.name"))
             _envoyer_template(
                 phone,
-                "sms_cmd_client_ordered",
-                [order.name, titres],
+                "sms_cmd_client_to_order",
+                [order.name, "- " + titres if titres else ""],
             )
         return result
 
@@ -103,12 +103,13 @@ class StockPickingWhatsApp(models.Model):
             if not product_ids:
                 continue
 
+            # Trouver les commandes clients confirmées contenant ces produits
             lines = self.env["sale.order.line"].search([
                 ("product_id", "in", product_ids),
                 ("order_id.state", "in", ["sale", "done"]),
             ])
 
-            # Grouper par commande pour envoyer un message par commande
+            # Grouper par commande
             commandes = {}
             for line in lines:
                 oid = line.order_id.id
@@ -116,31 +117,46 @@ class StockPickingWhatsApp(models.Model):
                     commandes[oid] = {
                         "order": line.order_id,
                         "partner": line.order_id.partner_id,
-                        "products": [],
+                        "produits_recus": [],
                     }
-                commandes[oid]["products"].append(line.product_id.name)
+                commandes[oid]["produits_recus"].append(line.product_id.name)
 
             for data in commandes.values():
                 partner = data["partner"]
                 phone = partner.mobile or partner.phone
                 if not phone:
                     continue
-                titres = "\n".join(f"- {n}" for n in data["products"])
-                # Template article_disponible :
-                # "L'article {{1}} faisant partie de votre commande No {{2}} est disponible..."
-                if len(data["products"]) == 1:
+
+                order = data["order"]
+                produits_recus = data["produits_recus"]
+                total_lignes = len(order.order_line)
+
+                # Vérifier si TOUS les produits de la commande sont reçus
+                tous_recus = len(produits_recus) >= total_lignes
+
+                if tous_recus:
+                    # Template sms_cmd_ls_disponible :
+                    # "La totalité de votre commande No {{1}} est disponible à la librairie DSM."
+                    _envoyer_template(
+                        phone,
+                        "sms_cmd_ls_disponible",
+                        [order.name],
+                    )
+                elif len(produits_recus) == 1:
+                    # Template article_disponible :
+                    # "L'article {{1}} faisant partie de votre commande No {{2}} est disponible..."
                     _envoyer_template(
                         phone,
                         "article_disponible",
-                        [data["products"][0], data["order"].name],
+                        [produits_recus[0], order.name],
                     )
                 else:
-                    # Plusieurs titres → template sms_cmd_client_received
-                    # "Votre commande No {{1}} est disponible... {{2}}"
-                    _envoyer_template(
-                        phone,
-                        "sms_cmd_client_received",
-                        [data["order"].name, titres],
-                    )
+                    # Plusieurs titres partiellement reçus → article_disponible par titre
+                    for titre in produits_recus:
+                        _envoyer_template(
+                            phone,
+                            "article_disponible",
+                            [titre, order.name],
+                        )
 
         return result
