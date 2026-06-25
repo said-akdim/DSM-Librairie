@@ -1,0 +1,104 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <record id="res_config_settings_view_form_wa" model="ir.ui.view">
+        <field name="name">res.config.settings.view.form.whatsapp</field>
+        <field name="model">res.config.settings</field>
+        <field name="inherit_id" ref="base_setup.res_config_settings_view_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//div[hasclass('settings')]" position="inside">
+                <div class="app_settings_block" data-string="WhatsApp DSM" string="WhatsApp DSM" data-key="dsm_whatsapp">
+                    <h2>Notifications WhatsApp</h2>
+                    <div class="row mt16 o_settings_container">
+
+                        <!-- Activation -->
+                        <div class="col-12 col-lg-6 o_setting_box">
+                            <div class="o_setting_left_pane">
+                                <field name="whatsapp_enabled"/>
+                            </div>
+                            <div class="o_setting_right_pane">
+                                <label for="whatsapp_enabled"/>
+                                <div class="text-muted">
+                                    Envoyer automatiquement des messages WhatsApp aux clients lors des événements de commande.
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Token -->
+                        <div class="col-12 col-lg-6 o_setting_box" attrs="{'invisible': [('whatsapp_enabled', '=', False)]}">
+                            <div class="o_setting_right_pane">
+                                <label for="whatsapp_token" string="Token d'accès API"/>
+                                <div class="text-muted">
+                                    Token Bearer de l'API WhatsApp Business Cloud (Meta Graph API).
+                                </div>
+                                <field name="whatsapp_token" password="True" placeholder="EAABxxxxxx..."/>
+                            </div>
+                        </div>
+
+                        <!-- Phone Number ID -->
+                        <div class="col-12 col-lg-6 o_setting_box" attrs="{'invisible': [('whatsapp_enabled', '=', False)]}">
+                            <div class="o_setting_right_pane">
+                                <label for="whatsapp_phone_id" string="Phone Number ID"/>
+                                <div class="text-muted">
+                                    ID du numéro WhatsApp Business dans le portail Meta for Developers.
+                                </div>
+                                <field name="whatsapp_phone_id" placeholder="123456789012345"/>
+                            </div>
+                        </div>
+
+                        <!-- Indicatif pays -->
+                        <div class="col-12 col-lg-6 o_setting_box" attrs="{'invisible': [('whatsapp_enabled', '=', False)]}">
+                            <div class="o_setting_right_pane">
+                                <label for="whatsapp_default_country" string="Indicatif pays par défaut"/>
+                                <div class="text-muted">
+                                    Utilisé pour convertir les numéros locaux (ex : 212 pour le Maroc).
+                                </div>
+                                <field name="whatsapp_default_country" placeholder="212"/>
+                            </div>
+                        </div>
+
+                        <!-- URL API (avancé) -->
+                        <div class="col-12 col-lg-6 o_setting_box" attrs="{'invisible': [('whatsapp_enabled', '=', False)]}">
+                            <div class="o_setting_right_pane">
+                                <label for="whatsapp_api_url" string="URL de l'API (avancé)"/>
+                                <field name="whatsapp_api_url" placeholder="https://graph.facebook.com/v19.0"/>
+                            </div>
+                        </div>
+
+                        <!-- Bouton test -->
+                        <div class="col-12 o_setting_box" attrs="{'invisible': [('whatsapp_enabled', '=', False)]}">
+                            <div class="o_setting_right_pane">
+                                <button name="action_test_whatsapp"
+                                        string="🔗 Tester la connexion"
+                                        type="object"
+                                        class="btn btn-secondary mt8"/>
+                            </div>
+                        </div>
+
+                    </div>
+
+                    <!-- Guide rapide -->
+                    <div class="row mt16" attrs="{'invisible': [('whatsapp_enabled', '=', False)]}">
+                        <div class="col-12">
+                            <div class="alert alert-info" role="alert">
+                                <strong>📋 Configuration rapide :</strong><br/>
+                                1. Créez une application sur <a href="https://developers.facebook.com" target="_blank">developers.facebook.com</a><br/>
+                                2. Ajoutez le produit <strong>WhatsApp</strong> à votre app<br/>
+                                3. Récupérez le <strong>Token d'accès temporaire</strong> et le <strong>Phone Number ID</strong><br/>
+                                4. Pour la production, générez un token permanent via un System User<br/>
+                                <br/>
+                                <strong>Événements déclencheurs :</strong><br/>
+                                • <strong>Commande créée</strong> : dès qu'une commande est enregistrée<br/>
+                                • <strong>Commande confirmée</strong> : lors de la confirmation (action_confirm)<br/>
+                                • <strong>Réception</strong> : bouton manuel sur la commande<br/>
+                                • <strong>Titre disponible</strong> : bouton par ligne de commande<br/>
+                                • <strong>Commande finalisée</strong> : quand l'état passe à "Terminé"
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </xpath>
+        </field>
+    </record>
+
+</odoo>
