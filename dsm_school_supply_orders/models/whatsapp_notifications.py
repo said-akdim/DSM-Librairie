@@ -5,12 +5,7 @@ from odoo import models
 _logger = logging.getLogger(__name__)
 
 WA_PHONE_ID = "1222766347580412"
-WA_TOKEN = (
-    "EAAOwrZAgt5jABR19GTxxyVkGP6p4ABf8ZAGdBOebzZCcpddC5DRbwd71GeA7dsJP"
-    "ENDLzq6Vf7OwrOcWJuYwZBzpeZCLROeUaHQ9sjnbGZAiKrWXeSZCqpyX13eUZCJmy"
-    "n1SGG4uuIH5PPopJz3BAECRFv1GNtZCoaKui8FwRrvNyb2r5b78N0395ZAtG8qKmAU"
-    "QFN2gZDZD"
-)
+WA_TOKEN = "EAAOwrZAgt5jABR19GTxxyVkGP6p4ABf8ZAGdBOebzZCcpddC5DRbwd71GeA7dsJPENDLzq6Vf7OwrOcWJuYwZBzpeZCLROeUaHQ9sjnbGZAiKrWXeSZCqpyX13eUZCJmYn1SGG4uuIH5PPopJz3BAECRFv1GNtZCoaKui8FwRrvNyb2r5b78N0395ZAtG8qKmAUQFN2gZDZD"
 
 
 def _normaliser_telephone(phone):
