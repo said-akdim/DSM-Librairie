@@ -24,7 +24,8 @@ def _normaliser_telephone(phone):
     return p if len(p) >= 12 else None
 
 
-def _envoyer_whatsapp(phone, message):
+def _envoyer_template(phone, template_name, params):
+    """Envoie un template WhatsApp approuvé Meta avec ses paramètres body."""
     to = _normaliser_telephone(phone)
     if not to:
         return False
@@ -37,15 +38,27 @@ def _envoyer_whatsapp(phone, message):
             },
             json={
                 "messaging_product": "whatsapp",
-                "recipient_type": "individual",
                 "to": to,
-                "type": "text",
-                "text": {"preview_url": False, "body": message},
+                "type": "template",
+                "template": {
+                    "name": template_name,
+                    "language": {"code": "fr"},
+                    "components": [
+                        {
+                            "type": "body",
+                            "parameters": [
+                                {"type": "text", "text": str(p)} for p in params
+                            ],
+                        }
+                    ],
+                },
             },
             timeout=10,
         )
         if not res.ok:
-            _logger.warning("WhatsApp API error %s: %s", res.status_code, res.text)
+            _logger.warning("WhatsApp template '%s' error %s: %s", template_name, res.status_code, res.text)
+        else:
+            _logger.info("WhatsApp template '%s' envoyé à %s", template_name, to)
         return res.ok
     except Exception as e:
         _logger.warning("WhatsApp send failed: %s", e)
@@ -62,18 +75,16 @@ class SaleOrderWhatsApp(models.Model):
             phone = partner.mobile or partner.phone
             if not phone:
                 continue
-            titres = order.order_line.mapped("product_id.name")
-            apercu = ", ".join(titres[:3])
-            if len(titres) > 3:
-                apercu += f" (+{len(titres) - 3} articles)"
-            msg = (
-                f"✅ Librairie DSM\n"
-                f"Commande {order.name} confirmée !\n"
-                f"Articles : {apercu}\n"
-                f"Total : {order.amount_total:.2f} DH\n"
-                f"Merci pour votre confiance 📚"
+            # Template sms_cmd_client_ordered :
+            # "Votre commande No {{1}} est en attente de réception... {{2}}"
+            titres = "\n".join(
+                f"- {name}" for name in order.order_line.mapped("product_id.name")
             )
-            _envoyer_whatsapp(phone, msg)
+            _envoyer_template(
+                phone,
+                "sms_cmd_client_ordered",
+                [order.name, titres],
+            )
         return result
 
 
@@ -81,40 +92,55 @@ class StockPickingWhatsApp(models.Model):
     _inherit = "stock.picking"
 
     def button_validate(self):
-        # Mémoriser les réceptions en cours avant validation
         receptions = self.filtered(
             lambda p: p.picking_type_code == "incoming"
             and p.state in ("assigned", "ready", "waiting")
         )
         result = super().button_validate()
 
-        # Après validation, notifier les clients qui attendent ces titres
         for picking in receptions.filtered(lambda p: p.state == "done"):
             product_ids = picking.move_ids.mapped("product_id").ids
             if not product_ids:
                 continue
 
-            # Clients avec une commande confirmée sur ces produits
             lines = self.env["sale.order.line"].search([
                 ("product_id", "in", product_ids),
                 ("order_id.state", "in", ["sale", "done"]),
             ])
 
-            notifies = set()
+            # Grouper par commande pour envoyer un message par commande
+            commandes = {}
             for line in lines:
-                partner = line.order_id.partner_id
-                if partner.id in notifies:
-                    continue
-                notifies.add(partner.id)
+                oid = line.order_id.id
+                if oid not in commandes:
+                    commandes[oid] = {
+                        "order": line.order_id,
+                        "partner": line.order_id.partner_id,
+                        "products": [],
+                    }
+                commandes[oid]["products"].append(line.product_id.name)
+
+            for data in commandes.values():
+                partner = data["partner"]
                 phone = partner.mobile or partner.phone
                 if not phone:
                     continue
-                msg = (
-                    f"📦 Librairie DSM\n"
-                    f"Bonne nouvelle {partner.name} !\n"
-                    f"Le titre « {line.product_id.name} » est arrivé en stock.\n"
-                    f"Venez le récupérer à la librairie 📚"
-                )
-                _envoyer_whatsapp(phone, msg)
+                titres = "\n".join(f"- {n}" for n in data["products"])
+                # Template article_disponible :
+                # "L'article {{1}} faisant partie de votre commande No {{2}} est disponible..."
+                if len(data["products"]) == 1:
+                    _envoyer_template(
+                        phone,
+                        "article_disponible",
+                        [data["products"][0], data["order"].name],
+                    )
+                else:
+                    # Plusieurs titres → template sms_cmd_client_received
+                    # "Votre commande No {{1}} est disponible... {{2}}"
+                    _envoyer_template(
+                        phone,
+                        "sms_cmd_client_received",
+                        [data["order"].name, titres],
+                    )
 
         return result
