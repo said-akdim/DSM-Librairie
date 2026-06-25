@@ -1,5 +1,6 @@
 import NetInfo from "@react-native-community/netinfo";
 import * as MailComposer from "expo-mail-composer";
+import { envoyerWhatsApp } from "./whatsapp";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
@@ -142,7 +143,7 @@ async function odooAddPoints(partnerId: number, points: number, description: str
   await odooAuthAdmin();
   const partner = await odooCall("res.partner", "search_read",
     [[["id", "=", partnerId]]],
-    { fields: ["dsm_points"], limit: 1 }
+    { fields: ["dsm_points", "phone", "mobile"], limit: 1 }
   );
   if (!partner?.[0]) return false;
   const pointsAvant = partner[0].dsm_points;
@@ -157,6 +158,10 @@ async function odooAddPoints(partnerId: number, points: number, description: str
     message: description,
     type: "points",
   }]);
+  envoyerWhatsApp(
+    partner[0].mobile || partner[0].phone,
+    `✅ Librairie DSM\n+${points} points fidélité !\n${description}\nTotal : ${pointsAvant + points} pts`
+  );
   return true;
 }
 

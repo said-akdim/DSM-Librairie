@@ -1,5 +1,6 @@
 import { CameraView, useCameraPermissions } from "expo-camera";
 import { ODOO_URL, ODOO_DB } from "./config";
+import { envoyerWhatsApp } from "./whatsapp";
 import { useState } from "react";
 import {
   ActivityIndicator,
@@ -50,7 +51,7 @@ async function rechercherClientParCarte(numCarte: string): Promise<any> {
   await caissAuthAdmin();
   const result = await caissCall("res.partner", "search_read",
     [[["dsm_num_carte", "=", numCarte]]],
-    { fields: ["name", "email", "dsm_points", "dsm_niveau", "dsm_num_carte", "dsm_solde"], limit: 1 }
+    { fields: ["name", "email", "phone", "mobile", "dsm_points", "dsm_niveau", "dsm_num_carte", "dsm_solde"], limit: 1 }
   );
   return result?.[0] || null;
 }
@@ -131,6 +132,10 @@ export default function Caisse() {
     const points = Math.round(total * 10);
     const ok = await ajouterPointsClient(client.id, points, total);
     if (ok) {
+      envoyerWhatsApp(
+        client.mobile || client.phone,
+        `✅ Librairie DSM\n+${points} points fidélité ajoutés !\nAchat : ${total.toFixed(2)} DH\nTotal points : ${(client.dsm_points || 0) + points} pts`
+      );
       setPhase("success");
     } else {
       Alert.alert("❌ Erreur", "Impossible d'ajouter les points");

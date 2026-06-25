@@ -1,5 +1,6 @@
 import * as Location from "expo-location";
 import { ODOO_URL, ODOO_DB } from "./config";
+import { envoyerWhatsApp } from "./whatsapp";
 import { useEffect, useState } from "react";
 import {
   ActivityIndicator, Alert, Linking, ScrollView,
@@ -345,7 +346,7 @@ export function EcranValidationCommande({
       if (orderId) {
         const partnerData = await odooCall("res.partner", "search_read",
           [[["id", "=", client.id]]],
-          { fields: ["dsm_points"], limit: 1 }
+          { fields: ["dsm_points", "phone", "mobile"], limit: 1 }
         );
         if (partnerData?.[0]) {
           const pointsAvant = partnerData[0].dsm_points;
@@ -361,6 +362,10 @@ export function EcranValidationCommande({
             message: `Votre commande ${trackingCode} est confirmée. Total : ${total.toFixed(2)} DH`,
             type: "points",
           }]);
+          envoyerWhatsApp(
+            partnerData[0].mobile || partnerData[0].phone,
+            `✅ Librairie DSM\nCommande ${trackingCode} confirmée !\nTotal : ${total.toFixed(2)} DH\n+${pts} points fidélité ajoutés`
+          );
         }
       }
 
