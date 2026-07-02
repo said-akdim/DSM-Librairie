@@ -18,7 +18,7 @@ import { ODOO_URL, ODOO_DB } from "./config";
 /* ══════════════════════════════════════
    RÉCEPTION LIVRES — Scan douchette
    Lecture seule Odoo : recherche produit par code-barres.
-   Aucune écriture de stock (voir README pour l'export).
+   Aucune écriture de stock (liste à partager/appliquer manuellement).
 ══════════════════════════════════════ */
 
 let recepCookies = "";
@@ -221,7 +221,7 @@ export default function Reception() {
         {loading && <ActivityIndicator color="#1A6FFF" />}
       </View>
 
-      {/* Scan caméra (téléphone sans douchette) */}
+      {/* Scan caméra (secours si le scanner intégré n'est pas en mode clavier) */}
       {!camActive ? (
         <TouchableOpacity style={st.btnCam} onPress={async () => {
           if (!permission?.granted) await requestPermission();
