@@ -26,6 +26,13 @@ import {
   OngletPromotions,
   OngletSuiviCommandes,
 } from "./extras";
+import {
+  CarteDigitale,
+  OngletHistoriqueAchats,
+  OngletPreferences,
+  OngletRecommandations,
+  OngletWishlist,
+} from "./fidelite";
 
 const IS_WEB = typeof window !== "undefined" && window?.location?.hostname === "localhost";
 const ODOO_URL = IS_WEB ? "http://localhost:8069" : "http://94.130.90.253:9069";
@@ -104,7 +111,15 @@ async function odooGetProduits(): Promise<any[]> {
 async function odooGetClient(id: number): Promise<any> {
   const result = await odooCall("res.partner", "search_read",
     [[["id", "=", id]]],
-    { fields: ["name", "email", "dsm_points", "dsm_niveau", "dsm_num_carte", "dsm_genre_favori", "dsm_auteur_favori", "dsm_membre_depuis", "dsm_solde"], limit: 1 }
+    {
+      fields: [
+        "name", "email", "dsm_points", "dsm_niveau", "dsm_num_carte",
+        "dsm_genre_favori", "dsm_auteur_favori", "dsm_membre_depuis", "dsm_solde",
+        "dsm_editeur_favori", "dsm_langue_pref", "dsm_budget_moyen",
+        "dsm_date_naissance", "dsm_wishlist",
+      ],
+      limit: 1,
+    }
   );
   return result?.[0] || null;
 }
@@ -1019,6 +1034,7 @@ export default function App() {
   const [toastMsg, setToastMsg] = useState("");
   const [showValidation, setShowValidation] = useState(false);
   const [panierValidation, setPanierValidation] = useState<any[]>([]);
+  const [showCarte, setShowCarte] = useState(false);
   const toastTimer = useRef<any>(null);
 
   const showToast = useCallback((msg: string) => {
@@ -1097,6 +1113,12 @@ export default function App() {
         </View>
       )}
 
+      {showCarte && (
+        <View style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, zIndex: 998 }}>
+          <CarteDigitale client={client} onFermer={() => setShowCarte(false)} />
+        </View>
+      )}
+
       {/* Header */}
       <View style={s.header}>
         <View style={s.headerLogo}><Text style={s.headerLogoTxt}>📚</Text></View>
@@ -1124,6 +1146,10 @@ export default function App() {
       {onglet === "scolaires" && <OngletListesScolaires onAjouterPanier={(_: any) => { }} />}
       {onglet === "promotions" && <OngletPromotions client={client} />}
       {onglet === "mon_compte" && <OngletMonCompte client={client} onUpdate={setClient} />}
+      {onglet === "historique" && <OngletHistoriqueAchats client={client} />}
+      {onglet === "recommandations" && <OngletRecommandations client={client} />}
+      {onglet === "wishlist" && <OngletWishlist client={client} />}
+      {onglet === "preferences" && <OngletPreferences client={client} onUpdate={setClient} />}
 
       {onglet === "plus" && (
         <ScrollView style={{ flex: 1, backgroundColor: "#F5F7FF" }}>
@@ -1132,14 +1158,22 @@ export default function App() {
             <Text style={{ fontSize: 12, color: "rgba(255,255,255,0.45)", marginTop: 4 }}>Tous vos outils DSM</Text>
           </View>
           {[
-            { id: "coups_coeur", icon: "❤️", label: "Coups de cœur", desc: "Vos livres favoris" },
+            { id: "carte", icon: "💳", label: "Carte digitale", desc: "Partagez votre carte fidélité" },
+            { id: "historique", icon: "📦", label: "Historique achats", desc: "Vos commandes et livres achetés" },
+            { id: "recommandations", icon: "📖", label: "Recommandations", desc: "Sélectionnés selon vos goûts" },
+            { id: "wishlist", icon: "❤️", label: "Ma wishlist", desc: "Livres à ne pas manquer" },
+            { id: "preferences", icon: "⚙️", label: "Mes préférences", desc: "Genre, auteur, budget..." },
+            { id: "coups_coeur", icon: "✨", label: "Coups de cœur", desc: "Sélection DSM du moment" },
             { id: "bons", icon: "🎟️", label: "Bons de réduction", desc: "Vos codes promo" },
-            { id: "commandes", icon: "📦", label: "Suivi commandes", desc: "Statut en temps réel" },
+            { id: "commandes", icon: "🚚", label: "Suivi commandes", desc: "Statut en temps réel" },
             { id: "scolaires", icon: "🎒", label: "Listes scolaires", desc: "Rentrée 2025-2026" },
             { id: "promotions", icon: "🔥", label: "Promotions", desc: "Offres du moment" },
             { id: "mon_compte", icon: "👤", label: "Mon compte", desc: "Adresse, livraison" },
           ].map((item, i) => (
-            <TouchableOpacity key={i} onPress={() => setOnglet(item.id)} style={{ flexDirection: "row", alignItems: "center", backgroundColor: "#fff", marginHorizontal: 16, marginBottom: 10, borderRadius: 18, padding: 18, gap: 14 }}>
+            <TouchableOpacity
+              key={i}
+              onPress={() => item.id === "carte" ? setShowCarte(true) : setOnglet(item.id)}
+              style={{ flexDirection: "row", alignItems: "center", backgroundColor: "#fff", marginHorizontal: 16, marginBottom: 10, borderRadius: 18, padding: 18, gap: 14 }}>
               <View style={{ width: 48, height: 48, borderRadius: 14, backgroundColor: "#EAF2FF", alignItems: "center", justifyContent: "center" }}>
                 <Text style={{ fontSize: 24 }}>{item.icon}</Text>
               </View>
