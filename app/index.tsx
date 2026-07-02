@@ -17,6 +17,7 @@ import {
 } from "react-native";
 import QRCode from "react-native-qrcode-svg";
 import Caisse from "./caisse";
+import Reception from "./reception";
 import {
   EcranValidationCommande,
   OngletBonsReduction,
@@ -1073,6 +1074,7 @@ export default function App() {
     { id: "classement", icon: "🏆", label: "Top" },
     { id: "plus", icon: "⊕", label: "Plus" },
     { id: "caisse", icon: "🏪", label: "Caisse" },
+    { id: "reception", icon: "📦", label: "Réception" },
     { id: "profil", icon: "👤", label: "Profil" },
   ];
 
@@ -1118,6 +1120,7 @@ export default function App() {
       {onglet === "notifs" && <OngletNotifs client={client} />}
       {onglet === "profil" && <OngletProfil client={client} onDeconnexion={() => { setClient(null); wsDisconnect(); }} wsOk={wsOk} />}
       {onglet === "caisse" && <Caisse />}
+      {onglet === "reception" && <Reception />}
       {onglet === "coups_coeur" && <OngletCoupsCoeur client={client} livres={LIVRES_FALLBACK} onAjouterPanier={(l: any) => { }} />}
       {onglet === "bons" && <OngletBonsReduction client={client} />}
       {onglet === "commandes" && <OngletSuiviCommandes client={client} />}
