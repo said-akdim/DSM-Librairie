@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <record id="view_dsm_historique_points_list" model="ir.ui.view">
+        <field name="name">dsm.historique.points.list</field>
+        <field name="model">dsm.historique.points</field>
+        <field name="arch" type="xml">
+            <list string="Historique des points" decoration-success="points > 0" decoration-danger="points &lt; 0">
+                <field name="date"/>
+                <field name="type" widget="badge"
+                    decoration-info="type == 'inscription'"
+                    decoration-success="type == 'achat'"
+                    decoration-warning="type == 'bonus'"
+                    decoration-danger="type == 'remboursement'"/>
+                <field name="description"/>
+                <field name="points"/>
+                <field name="points_avant"/>
+                <field name="points_apres"/>
+                <field name="order_id"/>
+                <field name="partner_id" optional="hide"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_dsm_historique_points_form" model="ir.ui.view">
+        <field name="name">dsm.historique.points.form</field>
+        <field name="model">dsm.historique.points</field>
+        <field name="arch" type="xml">
+            <form string="Mouvement de points">
+                <group>
+                    <group>
+                        <field name="partner_id"/>
+                        <field name="date"/>
+                        <field name="type"/>
+                    </group>
+                    <group>
+                        <field name="points"/>
+                        <field name="points_avant"/>
+                        <field name="points_apres"/>
+                    </group>
+                </group>
+                <group>
+                    <field name="description"/>
+                    <field name="order_id"/>
+                </group>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_dsm_historique_points" model="ir.actions.act_window">
+        <field name="name">Historique des points</field>
+        <field name="res_model">dsm.historique.points</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
+</odoo>

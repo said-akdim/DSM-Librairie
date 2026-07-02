@@ -1,0 +1,204 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!-- ─── Héritage fiche client : smart buttons ──────────────────────────── -->
+    <record id="view_partner_dsm_fidelite_header" model="ir.ui.view">
+        <field name="name">res.partner.form.dsm.fidelite.header</field>
+        <field name="model">res.partner</field>
+        <field name="inherit_id" ref="base.view_partner_form"/>
+        <field name="priority">20</field>
+        <field name="arch" type="xml">
+
+            <!-- Smart buttons en haut de la fiche -->
+            <xpath expr="//div[@name='button_box']" position="inside">
+                <button name="action_voir_commandes" type="object"
+                        class="oe_stat_button" icon="fa-shopping-cart"
+                        invisible="dsm_nb_commandes == 0">
+                    <field name="dsm_nb_commandes" widget="statinfo" string="Commandes"/>
+                </button>
+                <button name="action_voir_livraisons" type="object"
+                        class="oe_stat_button" icon="fa-truck"
+                        invisible="dsm_nb_livraisons == 0">
+                    <field name="dsm_nb_livraisons" widget="statinfo" string="Livraisons"/>
+                </button>
+                <button name="action_voir_recommandations" type="object"
+                        class="oe_stat_button" icon="fa-star"
+                        invisible="not dsm_genre_favori">
+                    <div class="o_stat_info">
+                        <span class="o_stat_text">Recommandations</span>
+                    </div>
+                </button>
+            </xpath>
+
+            <!-- Onglet VIP Fidélité -->
+            <xpath expr="//notebook" position="inside">
+                <page name="vip_fidelite" string="VIP Fidélité" groups="base.group_user">
+
+                    <!-- ── Carte virtuelle ──────────────────────────────────── -->
+                    <group string="Carte de fidélité virtuelle">
+                        <group>
+                            <field name="dsm_num_carte" placeholder="Non générée"/>
+                            <field name="dsm_membre_depuis"/>
+                            <field name="dsm_genre_favori" placeholder="Analyse requise"/>
+                            <field name="dsm_auteur_favori" placeholder="Analyse requise"/>
+                        </group>
+                        <group>
+                            <field name="dsm_carte_qr" widget="image"
+                                   options="{'size': [160, 160]}"
+                                   invisible="not dsm_num_carte"
+                                   string="QR Code"/>
+                        </group>
+                    </group>
+
+                    <!-- Aperçu HTML de la carte -->
+                    <group string="">
+                        <field name="dsm_carte_html" widget="html"
+                               invisible="not dsm_num_carte"
+                               nolabel="1" colspan="2"/>
+                    </group>
+
+                    <!-- Boutons d'action -->
+                    <div class="o_row mb-3">
+                        <button name="action_generer_carte" type="object"
+                                string="Générer la carte" class="btn btn-primary me-2"
+                                invisible="dsm_num_carte"/>
+                        <button name="action_analyser_achats" type="object"
+                                string="📊 Analyser les achats" class="btn btn-secondary me-2"
+                                invisible="not dsm_num_carte"/>
+                        <button name="action_voir_recommandations" type="object"
+                                string="📚 Voir recommandations" class="btn btn-info"
+                                invisible="not dsm_genre_favori"/>
+                    </div>
+
+                    <!-- ── Programme de fidélité ────────────────────────────── -->
+                    <group string="Programme de fidélité">
+                        <group>
+                            <field name="dsm_points"/>
+                            <field name="dsm_niveau" widget="badge"
+                                decoration-warning="dsm_niveau == 'bronze'"
+                                decoration-info="dsm_niveau == 'silver'"
+                                decoration-success="dsm_niveau == 'gold'"
+                                decoration-primary="dsm_niveau == 'platine'"/>
+                        </group>
+                        <group>
+                            <field name="dsm_solde" string="Solde équivalent (DH)"/>
+                            <field name="dsm_ca_total" string="CA total client (DH)"/>
+                        </group>
+                    </group>
+
+                    <!-- ── Livres préférés ──────────────────────────────────── -->
+                    <group string="📖 Livres préférés (analyse des achats)"
+                           invisible="not dsm_livre_prefere_ids">
+                        <field name="dsm_livre_prefere_ids" nolabel="1" colspan="2">
+                            <list>
+                                <field name="product_id"/>
+                                <field name="genre"/>
+                                <field name="auteur"/>
+                                <field name="nb_achats" string="Commandes"/>
+                                <field name="qte_totale" string="Qté"/>
+                                <field name="montant_total" string="Montant (DH)"/>
+                                <field name="date_dernier_achat" string="Dernier achat"/>
+                            </list>
+                        </field>
+                    </group>
+
+                    <!-- ── Historique des points ────────────────────────────── -->
+                    <group string="🏆 Historique des points">
+                        <field name="dsm_historique_ids" nolabel="1" colspan="2">
+                            <list limit="20"
+                                  decoration-success="points &gt; 0"
+                                  decoration-danger="points &lt; 0">
+                                <field name="date"/>
+                                <field name="type" widget="badge"/>
+                                <field name="description"/>
+                                <field name="points"/>
+                                <field name="points_avant"/>
+                                <field name="points_apres"/>
+                                <field name="order_id"/>
+                            </list>
+                        </field>
+                    </group>
+
+                    <!-- ── Notifications ────────────────────────────────────── -->
+                    <group string="🔔 Notifications" invisible="not dsm_notification_ids">
+                        <field name="dsm_notification_ids" nolabel="1" colspan="2">
+                            <list limit="10" decoration-muted="lu == True">
+                                <field name="date_creation"/>
+                                <field name="type" widget="badge"/>
+                                <field name="titre"/>
+                                <field name="message"/>
+                                <field name="lu" widget="boolean_toggle"/>
+                            </list>
+                        </field>
+                    </group>
+
+                </page>
+            </xpath>
+
+        </field>
+    </record>
+
+    <!-- ─── Vue liste clients VIP ──────────────────────────────────────────── -->
+    <record id="view_partner_dsm_vip_list" model="ir.ui.view">
+        <field name="name">res.partner.list.dsm.vip</field>
+        <field name="model">res.partner</field>
+        <field name="arch" type="xml">
+            <list string="Clients fidélité" default_order="dsm_points desc">
+                <field name="name"/>
+                <field name="dsm_num_carte"/>
+                <field name="dsm_points"/>
+                <field name="dsm_niveau" widget="badge"
+                    decoration-warning="dsm_niveau == 'bronze'"
+                    decoration-info="dsm_niveau == 'silver'"
+                    decoration-success="dsm_niveau == 'gold'"
+                    decoration-primary="dsm_niveau == 'platine'"/>
+                <field name="dsm_solde" string="Solde (DH)"/>
+                <field name="dsm_genre_favori"/>
+                <field name="dsm_auteur_favori"/>
+                <field name="dsm_membre_depuis"/>
+                <field name="dsm_nb_commandes" string="Commandes"/>
+            </list>
+        </field>
+    </record>
+
+    <!-- ─── Actions et menus ──────────────────────────────────────────────── -->
+    <record id="action_dsm_clients_fidelite" model="ir.actions.act_window">
+        <field name="name">Clients fidélité</field>
+        <field name="res_model">res.partner</field>
+        <field name="view_mode">list,form</field>
+        <field name="view_id" ref="view_partner_dsm_vip_list"/>
+        <field name="domain">[('dsm_num_carte', '!=', False)]</field>
+        <field name="context">{'search_default_group_by_niveau': 1}</field>
+    </record>
+
+    <record id="action_dsm_historique_all" model="ir.actions.act_window">
+        <field name="name">Tous les mouvements de points</field>
+        <field name="res_model">dsm.historique.points</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
+    <!-- Menu principal -->
+    <menuitem id="menu_dsm_fidelite_root"
+              name="Fidélité DSM"
+              sequence="50"
+              web_icon="fa-trophy"/>
+
+    <menuitem id="menu_dsm_clients_fidelite"
+              name="Clients fidélité"
+              parent="menu_dsm_fidelite_root"
+              action="action_dsm_clients_fidelite"
+              sequence="10"/>
+
+    <menuitem id="menu_dsm_historique_all"
+              name="Historique des points"
+              parent="menu_dsm_fidelite_root"
+              action="action_dsm_historique_all"
+              sequence="20"/>
+
+    <menuitem id="menu_dsm_notifications"
+              name="Notifications clients"
+              parent="menu_dsm_fidelite_root"
+              action="action_dsm_notification"
+              sequence="30"/>
+
+</odoo>

@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <record id="view_dsm_notification_list" model="ir.ui.view">
+        <field name="name">dsm.notification.list</field>
+        <field name="model">dsm.notification</field>
+        <field name="arch" type="xml">
+            <list string="Notifications clients" decoration-muted="lu == True">
+                <field name="date_creation"/>
+                <field name="partner_id"/>
+                <field name="type" widget="badge"/>
+                <field name="titre"/>
+                <field name="message"/>
+                <field name="lu" widget="boolean_toggle"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="action_dsm_notification" model="ir.actions.act_window">
+        <field name="name">Notifications clients</field>
+        <field name="res_model">dsm.notification</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
+</odoo>

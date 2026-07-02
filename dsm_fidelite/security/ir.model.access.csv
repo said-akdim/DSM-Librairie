@@ -1,0 +1,7 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_dsm_historique_points_user,dsm.historique.points user,model_dsm_historique_points,base.group_user,1,1,1,0
+access_dsm_historique_points_manager,dsm.historique.points manager,model_dsm_historique_points,base.group_system,1,1,1,1
+access_dsm_notification_user,dsm.notification user,model_dsm_notification,base.group_user,1,1,1,0
+access_dsm_notification_manager,dsm.notification manager,model_dsm_notification,base.group_system,1,1,1,1
+access_dsm_livre_prefere_user,dsm.livre.prefere user,model_dsm_livre_prefere,base.group_user,1,1,1,1
+access_dsm_livre_prefere_manager,dsm.livre.prefere manager,model_dsm_livre_prefere,base.group_system,1,1,1,1
