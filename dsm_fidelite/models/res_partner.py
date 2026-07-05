@@ -87,7 +87,7 @@ class ResPartner(models.Model):
             except Exception:
                 rec.dsm_carte_qr = False
 
-    @api.depends('dsm_num_carte', 'dsm_points', 'dsm_niveau', 'dsm_solde', 'dsm_membre_depuis', 'dsm_carte_qr')
+    @api.depends('dsm_num_carte', 'dsm_points', 'dsm_niveau', 'dsm_solde', 'dsm_membre_depuis')
     def _compute_carte_html(self):
         niveau_colors = {
             'bronze': ('#CD7F32', '#fff8f0'),
@@ -106,12 +106,26 @@ class ResPartner(models.Model):
             membre = rec.dsm_membre_depuis.strftime('%d/%m/%Y') if rec.dsm_membre_depuis else '—'
             num = rec.dsm_num_carte
 
-            # QR code en base64 — affichage inline sans dépendance réseau
-            if rec.dsm_carte_qr:
-                qr_b64 = rec.dsm_carte_qr.decode() if isinstance(rec.dsm_carte_qr, bytes) else rec.dsm_carte_qr
-                qr_block = f'<img src="data:image/png;base64,{qr_b64}" width="170" height="170" style="display:block;" alt="QR Code DSM"/>'
-            else:
-                qr_block = '<div style="width:170px;height:170px;display:flex;align-items:center;justify-content:center;color:#999;font-size:12px;">QR indisponible</div>'
+            # QR code généré inline en base64 — pas de dépendance URL/réseau
+            qr_block = ''
+            try:
+                import qrcode as _qrcode  # noqa: PLC0415
+                _qr = _qrcode.QRCode(version=1, box_size=8, border=3)
+                _qr.add_data(f'DSM-{num}')
+                _qr.make(fit=True)
+                _img = _qr.make_image(fill_color='#1a1a2e', back_color='white')
+                _buf = io.BytesIO()
+                _img.save(_buf, format='PNG')
+                _b64 = base64.b64encode(_buf.getvalue()).decode()
+                qr_block = (
+                    f'<img src="data:image/png;base64,{_b64}" '
+                    f'width="170" height="170" style="display:block;" alt="QR DSM"/>'
+                )
+            except Exception:
+                qr_block = (
+                    f'<div style="width:170px;height:40px;text-align:center;'
+                    f'line-height:40px;color:#aaa;font-size:11px;">QR non disponible</div>'
+                )
 
             rec.dsm_carte_html = f"""
 <div style="
