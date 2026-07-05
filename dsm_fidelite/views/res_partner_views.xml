@@ -42,12 +42,7 @@
                             <field name="dsm_genre_favori" placeholder="Analyse requise"/>
                             <field name="dsm_auteur_favori" placeholder="Analyse requise"/>
                         </group>
-                        <group>
-                            <field name="dsm_carte_qr" widget="image"
-                                   options="{'size': [160, 160]}"
-                                   invisible="not dsm_num_carte"
-                                   string="QR Code"/>
-                        </group>
+                        <group/>
                     </group>
 
                     <!-- Aperçu HTML de la carte -->

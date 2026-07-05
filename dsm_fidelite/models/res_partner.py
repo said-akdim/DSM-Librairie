@@ -87,7 +87,7 @@ class ResPartner(models.Model):
             except Exception:
                 rec.dsm_carte_qr = False
 
-    @api.depends('dsm_num_carte', 'dsm_points', 'dsm_niveau', 'dsm_solde', 'dsm_membre_depuis')
+    @api.depends('dsm_num_carte', 'dsm_points', 'dsm_niveau', 'dsm_solde', 'dsm_membre_depuis', 'dsm_carte_qr')
     def _compute_carte_html(self):
         niveau_colors = {
             'bronze': ('#CD7F32', '#fff8f0'),
@@ -103,6 +103,30 @@ class ResPartner(models.Model):
             color, bg = niveau_colors.get(niveau, ('#888', '#fff'))
             label = dict(self._fields['dsm_niveau'].selection).get(niveau, niveau)
             membre = rec.dsm_membre_depuis.strftime('%d/%m/%Y') if rec.dsm_membre_depuis else '—'
+
+            # QR code embarqué dans la carte
+            if rec.dsm_carte_qr:
+                qr_b64 = rec.dsm_carte_qr.decode() if isinstance(rec.dsm_carte_qr, bytes) else rec.dsm_carte_qr
+                qr_html = f"""
+                <div style="text-align:center; margin-top:16px;">
+                    <div style="
+                        display:inline-block; background:#fff;
+                        border:2px solid {color}; border-radius:12px;
+                        padding:10px; box-shadow:0 2px 8px rgba(0,0,0,.1);
+                    ">
+                        <img src="data:image/png;base64,{qr_b64}"
+                             width="130" height="130"
+                             style="display:block;"
+                             alt="QR Code"/>
+                        <div style="font-size:13px; font-weight:700; letter-spacing:4px;
+                                    color:#333; margin-top:6px; font-family:monospace;">
+                            {rec.dsm_num_carte}
+                        </div>
+                    </div>
+                </div>"""
+            else:
+                qr_html = ''
+
             rec.dsm_carte_html = f"""
 <div style="
     background: linear-gradient(135deg, {bg} 0%, white 100%);
@@ -124,17 +148,11 @@ class ResPartner(models.Model):
         </div>
         <div style="font-size:28px;">{label.split()[-1] if label else ''}</div>
     </div>
-    <div style="font-size:13px; color:#444; margin-bottom:6px;">
+    <div style="font-size:13px; color:#444; margin-bottom:14px;">
         <b>Client :</b> {rec.name or '—'}
     </div>
-    <div style="
-        font-size:22px; font-weight:700; letter-spacing:6px; color:#222;
-        background:{bg}; border:1px dashed {color}; border-radius:8px;
-        padding:8px 14px; display:inline-block; margin-bottom:14px;
-    ">
-        {rec.dsm_num_carte}
-    </div>
-    <div style="display:flex; gap:24px; font-size:13px; color:#555;">
+    {qr_html}
+    <div style="display:flex; gap:24px; font-size:13px; color:#555; margin-top:16px;">
         <div><b style="color:{color};">{rec.dsm_points}</b><br/>Points</div>
         <div><b style="color:{color};">{rec.dsm_solde:.2f} DH</b><br/>Solde</div>
         <div><b style="color:{color};">{membre}</b><br/>Membre depuis</div>
