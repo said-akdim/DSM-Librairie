@@ -210,7 +210,7 @@ class ResPartner(models.Model):
         # Agrégation par produit
         product_data = defaultdict(lambda: {
             'nb_achats': 0, 'qte': 0.0, 'montant': 0.0,
-            'premier': None, 'dernier': None,
+            'premier': None, 'dernier': None, 'auteur': '',
         })
         genre_count = defaultdict(float)
         author_count = defaultdict(float)
@@ -235,6 +235,8 @@ class ResPartner(models.Model):
             for attr_val in line.product_id.product_template_attribute_value_ids:
                 if 'auteur' in (attr_val.attribute_id.name or '').lower():
                     author_count[attr_val.name] += line.product_uom_qty
+                    if not product_data[tmpl.id]['auteur']:
+                        product_data[tmpl.id]['auteur'] = attr_val.name
 
         # Supprime les anciens enregistrements
         self.dsm_livre_prefere_ids.unlink()
@@ -243,9 +245,12 @@ class ResPartner(models.Model):
         sorted_products = sorted(product_data.items(), key=lambda x: x[1]['qte'], reverse=True)[:20]
         vals_list = []
         for tmpl_id, d in sorted_products:
+            tmpl = self.env['product.template'].browse(tmpl_id)
             vals_list.append({
                 'partner_id': self.id,
                 'product_id': tmpl_id,
+                'genre': tmpl.categ_id.name or '',
+                'auteur': d.get('auteur', ''),
                 'nb_achats': d['nb_achats'],
                 'qte_totale': d['qte'],
                 'montant_total': d['montant'],
