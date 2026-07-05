@@ -87,7 +87,7 @@ class ResPartner(models.Model):
             except Exception:
                 rec.dsm_carte_qr = False
 
-    @api.depends('dsm_num_carte', 'dsm_points', 'dsm_niveau', 'dsm_solde', 'dsm_membre_depuis', 'dsm_carte_qr')
+    @api.depends('dsm_num_carte', 'dsm_points', 'dsm_niveau', 'dsm_solde', 'dsm_membre_depuis')
     def _compute_carte_html(self):
         niveau_colors = {
             'bronze': ('#CD7F32', '#fff8f0'),
@@ -95,6 +95,8 @@ class ResPartner(models.Model):
             'gold':   ('#D4AF37', '#fffdf0'),
             'platine': ('#6C63FF', '#f5f3ff'),
         }
+        base_url = self.env['ir.config_parameter'].sudo().get_param('web.base.url', '')
+
         for rec in self:
             if not rec.dsm_num_carte:
                 rec.dsm_carte_html = '<p style="color:#888;">Aucune carte générée.</p>'
@@ -103,29 +105,12 @@ class ResPartner(models.Model):
             color, bg = niveau_colors.get(niveau, ('#888', '#fff'))
             label = dict(self._fields['dsm_niveau'].selection).get(niveau, niveau)
             membre = rec.dsm_membre_depuis.strftime('%d/%m/%Y') if rec.dsm_membre_depuis else '—'
+            num = rec.dsm_num_carte
 
-            # QR code embarqué dans la carte
-            if rec.dsm_carte_qr:
-                qr_b64 = rec.dsm_carte_qr.decode() if isinstance(rec.dsm_carte_qr, bytes) else rec.dsm_carte_qr
-                qr_html = f"""
-                <div style="text-align:center; margin-top:16px;">
-                    <div style="
-                        display:inline-block; background:#fff;
-                        border:2px solid {color}; border-radius:12px;
-                        padding:10px; box-shadow:0 2px 8px rgba(0,0,0,.1);
-                    ">
-                        <img src="data:image/png;base64,{qr_b64}"
-                             width="130" height="130"
-                             style="display:block;"
-                             alt="QR Code"/>
-                        <div style="font-size:13px; font-weight:700; letter-spacing:4px;
-                                    color:#333; margin-top:6px; font-family:monospace;">
-                            {rec.dsm_num_carte}
-                        </div>
-                    </div>
-                </div>"""
-            else:
-                qr_html = ''
+            # QR code via endpoint Odoo intégré (pas besoin de librairie externe)
+            qr_url = f"{base_url}/report/barcode/QR?value=DSM-{num}&width=140&height=140"
+            # Code-barres Code128 scannable en caisse
+            bar_url = f"{base_url}/report/barcode/Code128?value={num}&width=280&height=60"
 
             rec.dsm_carte_html = f"""
 <div style="
@@ -133,11 +118,12 @@ class ResPartner(models.Model):
     border: 2px solid {color};
     border-radius: 16px;
     padding: 20px 28px;
-    max-width: 420px;
+    max-width: 460px;
     font-family: 'Segoe UI', sans-serif;
     box-shadow: 0 4px 16px rgba(0,0,0,.08);
 ">
-    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+    <!-- En-tête -->
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;">
         <div>
             <div style="font-size:11px; color:#666; text-transform:uppercase; letter-spacing:1px;">
                 Librairie DSM
@@ -146,13 +132,51 @@ class ResPartner(models.Model):
                 {label}
             </div>
         </div>
-        <div style="font-size:28px;">{label.split()[-1] if label else ''}</div>
+        <div style="font-size:26px;">{label.split()[-1] if label else ''}</div>
     </div>
-    <div style="font-size:13px; color:#444; margin-bottom:14px;">
+
+    <!-- Nom client -->
+    <div style="font-size:13px; color:#444; margin-bottom:16px;">
         <b>Client :</b> {rec.name or '—'}
     </div>
-    {qr_html}
-    <div style="display:flex; gap:24px; font-size:13px; color:#555; margin-top:16px;">
+
+    <!-- QR code + code-barres côte à côte -->
+    <div style="display:flex; align-items:center; gap:20px; margin-bottom:16px;">
+
+        <!-- QR Code (scan app mobile) -->
+        <div style="text-align:center;">
+            <div style="font-size:10px; color:#888; margin-bottom:4px; text-transform:uppercase; letter-spacing:1px;">QR Code</div>
+            <div style="
+                background:#fff; border:2px solid {color};
+                border-radius:10px; padding:8px;
+                box-shadow:0 2px 6px rgba(0,0,0,.1);
+                display:inline-block;
+            ">
+                <img src="{qr_url}" width="130" height="130"
+                     style="display:block;" alt="QR Code DSM"/>
+            </div>
+        </div>
+
+        <!-- Numéro + code-barres (scan caisse) -->
+        <div style="flex:1; text-align:center;">
+            <div style="font-size:10px; color:#888; margin-bottom:4px; text-transform:uppercase; letter-spacing:1px;">Code-barres caisse</div>
+            <div style="
+                background:#fff; border:2px solid {color};
+                border-radius:10px; padding:10px 8px;
+                box-shadow:0 2px 6px rgba(0,0,0,.1);
+            ">
+                <img src="{bar_url}" style="max-width:100%; height:56px; display:block; margin:0 auto;"
+                     alt="Code-barres {num}"/>
+                <div style="font-size:14px; font-weight:700; letter-spacing:4px;
+                            color:#333; margin-top:6px; font-family:monospace;">
+                    {num}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Stats -->
+    <div style="display:flex; gap:20px; font-size:13px; color:#555;">
         <div><b style="color:{color};">{rec.dsm_points}</b><br/>Points</div>
         <div><b style="color:{color};">{rec.dsm_solde:.2f} DH</b><br/>Solde</div>
         <div><b style="color:{color};">{membre}</b><br/>Membre depuis</div>
