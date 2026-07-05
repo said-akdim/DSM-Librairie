@@ -1,7 +1,17 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
 
-    <!-- ─── Héritage fiche client : smart buttons ──────────────────────────── -->
+    <!-- ─── Masquer l'onglet "VIP Fidélité" de book_vip (fusionné dans Carte) ── -->
+    <record id="view_partner_book_vip_hide_tab" model="ir.ui.view">
+        <field name="name">res.partner.form.book.vip.hide</field>
+        <field name="model">res.partner</field>
+        <field name="inherit_id" ref="book_vip.view_res_partner_vip_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//page[@name='vip_fidelity']" position="replace"/>
+        </field>
+    </record>
+
+    <!-- ─── Héritage fiche client : smart buttons + onglets fusionnés ─────── -->
     <record id="view_partner_dsm_fidelite_header" model="ir.ui.view">
         <field name="name">res.partner.form.dsm.fidelite.header</field>
         <field name="model">res.partner</field>
@@ -30,22 +40,32 @@
                 </button>
             </xpath>
 
-            <!-- ══ Onglet 1 : Carte ══ -->
+            <!-- ══ Onglet 1 : Carte (DSM + VIP Book fusionnés) ══ -->
             <xpath expr="//notebook" position="inside">
                 <page name="dsm_carte" string="Carte" groups="base.group_user">
 
-                    <!-- Boutons -->
+                    <!-- Boutons DSM -->
                     <div class="o_row mb-3">
                         <button name="action_generer_carte" type="object"
                                 string="Générer la carte" class="btn btn-primary me-2"
                                 invisible="dsm_num_carte"/>
                         <button name="action_envoyer_carte_email" type="object"
-                                string="✉️ Envoyer par email" class="btn btn-danger me-2"
+                                string="Envoyer par email" class="btn btn-danger me-2"
                                 invisible="not dsm_num_carte"/>
+                        <button name="action_enroll_vip" type="object"
+                                string="Inscrire au VIP" class="btn btn-warning me-2"
+                                invisible="vip_enrolled"/>
+                        <button name="action_open_vip_points" type="object"
+                                string="Carte VIP" class="btn btn-info me-2"
+                                invisible="not vip_enrolled"/>
+                        <button name="action_unenroll_vip" type="object"
+                                string="Désinscrire du VIP" class="btn btn-outline-danger"
+                                invisible="not vip_enrolled"
+                                confirm="Désinscrire ce client du programme VIP ?"/>
                     </div>
 
-                    <!-- Infos carte -->
-                    <group string="Informations">
+                    <!-- Infos carte DSM -->
+                    <group string="Carte DSM Fidélité">
                         <group>
                             <field name="dsm_num_carte" placeholder="Non générée"/>
                             <field name="dsm_membre_depuis"/>
@@ -59,6 +79,19 @@
                                 decoration-primary="dsm_niveau == 'platine'"/>
                             <field name="dsm_solde" string="Solde (DH)"/>
                             <field name="dsm_ca_total" string="CA total (DH)"/>
+                        </group>
+                    </group>
+
+                    <!-- Statut VIP (book_vip) -->
+                    <group string="Programme VIP Book">
+                        <group>
+                            <field name="vip_enrolled" string="Inscrit VIP"/>
+                            <field name="vip_enrolled_date" invisible="not vip_enrolled"/>
+                            <field name="vip_tier_id" invisible="not vip_enrolled"/>
+                        </group>
+                        <group invisible="not vip_enrolled">
+                            <field name="vip_points_balance" string="Points programme"/>
+                            <field name="vip_annual_spent" string="Dépenses 12 mois (MAD)"/>
                         </group>
                     </group>
 
@@ -94,10 +127,10 @@
                     <!-- Boutons analyse -->
                     <div class="o_row mb-3">
                         <button name="action_analyser_achats" type="object"
-                                string="📊 Analyser les achats" class="btn btn-secondary me-2"
+                                string="Analyser les achats" class="btn btn-secondary me-2"
                                 invisible="not dsm_num_carte"/>
                         <button name="action_voir_recommandations" type="object"
-                                string="📚 Recommandations" class="btn btn-info"
+                                string="Recommandations" class="btn btn-info"
                                 invisible="not dsm_genre_favori"/>
                     </div>
 
@@ -157,6 +190,7 @@
                     decoration-info="dsm_niveau == 'silver'"
                     decoration-success="dsm_niveau == 'gold'"
                     decoration-primary="dsm_niveau == 'platine'"/>
+                <field name="vip_tier_id" string="Niveau VIP Book" optional="hide"/>
                 <field name="dsm_solde" string="Solde (DH)"/>
                 <field name="dsm_genre_favori"/>
                 <field name="dsm_auteur_favori"/>
