@@ -107,10 +107,8 @@ class ResPartner(models.Model):
             membre = rec.dsm_membre_depuis.strftime('%d/%m/%Y') if rec.dsm_membre_depuis else '—'
             num = rec.dsm_num_carte
 
-            # QR code via endpoint Odoo intégré (pas besoin de librairie externe)
-            qr_url = f"{base_url}/report/barcode/QR?value=DSM-{num}&width=140&height=140"
-            # Code-barres Code128 scannable en caisse
-            bar_url = f"{base_url}/report/barcode/Code128?value={num}&width=280&height=60"
+            # QR code via endpoint Odoo intégré — scannable app mobile ET lecteur 2D caisse
+            qr_url = f"{base_url}/report/barcode/QR?value=DSM-{num}&width=180&height=180"
 
             rec.dsm_carte_html = f"""
 <div style="
@@ -118,7 +116,7 @@ class ResPartner(models.Model):
     border: 2px solid {color};
     border-radius: 16px;
     padding: 20px 28px;
-    max-width: 460px;
+    max-width: 380px;
     font-family: 'Segoe UI', sans-serif;
     box-shadow: 0 4px 16px rgba(0,0,0,.08);
 ">
@@ -136,50 +134,31 @@ class ResPartner(models.Model):
     </div>
 
     <!-- Nom client -->
-    <div style="font-size:13px; color:#444; margin-bottom:16px;">
+    <div style="font-size:13px; color:#444; margin-bottom:18px;">
         <b>Client :</b> {rec.name or '—'}
     </div>
 
-    <!-- QR code + code-barres côte à côte -->
-    <div style="display:flex; align-items:center; gap:20px; margin-bottom:16px;">
-
-        <!-- QR Code (scan app mobile) -->
-        <div style="text-align:center;">
-            <div style="font-size:10px; color:#888; margin-bottom:4px; text-transform:uppercase; letter-spacing:1px;">QR Code</div>
-            <div style="
-                background:#fff; border:2px solid {color};
-                border-radius:10px; padding:8px;
-                box-shadow:0 2px 6px rgba(0,0,0,.1);
-                display:inline-block;
-            ">
-                <img src="{qr_url}" width="130" height="130"
-                     style="display:block;" alt="QR Code DSM"/>
-            </div>
-        </div>
-
-        <!-- Numéro + code-barres (scan caisse) -->
-        <div style="flex:1; text-align:center;">
-            <div style="font-size:10px; color:#888; margin-bottom:4px; text-transform:uppercase; letter-spacing:1px;">Code-barres caisse</div>
-            <div style="
-                background:#fff; border:2px solid {color};
-                border-radius:10px; padding:10px 8px;
-                box-shadow:0 2px 6px rgba(0,0,0,.1);
-            ">
-                <img src="{bar_url}" style="max-width:100%; height:56px; display:block; margin:0 auto;"
-                     alt="Code-barres {num}"/>
-                <div style="font-size:14px; font-weight:700; letter-spacing:4px;
-                            color:#333; margin-top:6px; font-family:monospace;">
-                    {num}
-                </div>
+    <!-- QR Code centré -->
+    <div style="text-align:center; margin-bottom:18px;">
+        <div style="
+            display:inline-block; background:#fff;
+            border:2px solid {color}; border-radius:14px;
+            padding:12px; box-shadow:0 3px 10px rgba(0,0,0,.12);
+        ">
+            <img src="{qr_url}" width="170" height="170"
+                 style="display:block;" alt="QR Code DSM"/>
+            <div style="font-size:15px; font-weight:700; letter-spacing:5px;
+                        color:#333; margin-top:8px; font-family:monospace;">
+                {num}
             </div>
         </div>
     </div>
 
     <!-- Stats -->
-    <div style="display:flex; gap:20px; font-size:13px; color:#555;">
-        <div><b style="color:{color};">{rec.dsm_points}</b><br/>Points</div>
-        <div><b style="color:{color};">{rec.dsm_solde:.2f} DH</b><br/>Solde</div>
-        <div><b style="color:{color};">{membre}</b><br/>Membre depuis</div>
+    <div style="display:flex; gap:20px; font-size:13px; color:#555; justify-content:center;">
+        <div style="text-align:center;"><b style="color:{color}; font-size:16px;">{rec.dsm_points}</b><br/>Points</div>
+        <div style="text-align:center;"><b style="color:{color}; font-size:16px;">{rec.dsm_solde:.2f} DH</b><br/>Solde</div>
+        <div style="text-align:center;"><b style="color:{color}; font-size:14px;">{membre}</b><br/>Membre</div>
     </div>
 </div>
 """
