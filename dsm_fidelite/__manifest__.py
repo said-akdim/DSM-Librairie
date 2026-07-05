@@ -7,6 +7,7 @@
     'depends': ['base', 'sale', 'stock', 'contacts'],
     'data': [
         'security/ir.model.access.csv',
+        'data/mail_template_carte.xml',
         'views/historique_points_views.xml',
         'views/notification_views.xml',
         'views/livre_prefere_views.xml',

@@ -62,6 +62,9 @@
                         <button name="action_generer_carte" type="object"
                                 string="Générer la carte" class="btn btn-primary me-2"
                                 invisible="dsm_num_carte"/>
+                        <button name="action_envoyer_carte_email" type="object"
+                                string="✉️ Envoyer la carte par email" class="btn btn-danger me-2"
+                                invisible="not dsm_num_carte"/>
                         <button name="action_analyser_achats" type="object"
                                 string="📊 Analyser les achats" class="btn btn-secondary me-2"
                                 invisible="not dsm_num_carte"/>

@@ -332,6 +332,42 @@ class ResPartner(models.Model):
             ],
         }
 
+    def action_envoyer_carte_email(self):
+        """Envoie la carte de fidélité virtuelle par email au client."""
+        self.ensure_one()
+        if not self.email:
+            return {
+                'type': 'ir.actions.client',
+                'tag': 'display_notification',
+                'params': {
+                    'title': 'Email manquant',
+                    'message': "Ce client n'a pas d'adresse email renseignée.",
+                    'type': 'warning',
+                },
+            }
+        if not self.dsm_num_carte:
+            return {
+                'type': 'ir.actions.client',
+                'tag': 'display_notification',
+                'params': {
+                    'title': 'Carte non générée',
+                    'message': "Veuillez d'abord générer la carte de fidélité.",
+                    'type': 'warning',
+                },
+            }
+        template = self.env.ref('dsm_fidelite.mail_template_carte_fidelite', raise_if_not_found=False)
+        if template:
+            template.send_mail(self.id, force_send=True)
+            return {
+                'type': 'ir.actions.client',
+                'tag': 'display_notification',
+                'params': {
+                    'title': 'Email envoyé !',
+                    'message': f'Carte de fidélité envoyée à {self.email}.',
+                    'type': 'success',
+                },
+            }
+
     # ── Méthode interne ───────────────────────────────────────────────────────
 
     def _ajouter_points(self, points, type_op, description, order_id=False):
