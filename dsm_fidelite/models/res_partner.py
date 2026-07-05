@@ -26,7 +26,7 @@ class ResPartner(models.Model):
 
     # ── Carte virtuelle QR ────────────────────────────────────────────────────
 
-    dsm_carte_qr = fields.Binary(string='QR Code carte', compute='_compute_carte_qr', store=False)
+    dsm_carte_qr = fields.Binary(string='QR Code carte', compute='_compute_carte_qr', store=True)
     dsm_carte_html = fields.Html(
         string='Carte virtuelle', compute='_compute_carte_html',
         sanitize=False, store=False,
@@ -87,7 +87,7 @@ class ResPartner(models.Model):
             except Exception:
                 rec.dsm_carte_qr = False
 
-    @api.depends('dsm_num_carte', 'dsm_points', 'dsm_niveau', 'dsm_solde', 'dsm_membre_depuis')
+    @api.depends('dsm_num_carte', 'dsm_points', 'dsm_niveau', 'dsm_solde', 'dsm_membre_depuis', 'dsm_carte_qr')
     def _compute_carte_html(self):
         niveau_colors = {
             'bronze': ('#CD7F32', '#fff8f0'),
@@ -95,7 +95,6 @@ class ResPartner(models.Model):
             'gold':   ('#D4AF37', '#fffdf0'),
             'platine': ('#6C63FF', '#f5f3ff'),
         }
-        base_url = self.env['ir.config_parameter'].sudo().get_param('web.base.url', '')
 
         for rec in self:
             if not rec.dsm_num_carte:
@@ -107,8 +106,12 @@ class ResPartner(models.Model):
             membre = rec.dsm_membre_depuis.strftime('%d/%m/%Y') if rec.dsm_membre_depuis else '—'
             num = rec.dsm_num_carte
 
-            # QR code via endpoint Odoo intégré — scannable app mobile ET lecteur 2D caisse
-            qr_url = f"{base_url}/report/barcode/QR?value=DSM-{num}&width=180&height=180"
+            # QR code en base64 — affichage inline sans dépendance réseau
+            if rec.dsm_carte_qr:
+                qr_b64 = rec.dsm_carte_qr.decode() if isinstance(rec.dsm_carte_qr, bytes) else rec.dsm_carte_qr
+                qr_block = f'<img src="data:image/png;base64,{qr_b64}" width="170" height="170" style="display:block;" alt="QR Code DSM"/>'
+            else:
+                qr_block = '<div style="width:170px;height:170px;display:flex;align-items:center;justify-content:center;color:#999;font-size:12px;">QR indisponible</div>'
 
             rec.dsm_carte_html = f"""
 <div style="
@@ -145,8 +148,7 @@ class ResPartner(models.Model):
             border:2px solid {color}; border-radius:14px;
             padding:12px; box-shadow:0 3px 10px rgba(0,0,0,.12);
         ">
-            <img src="{qr_url}" width="170" height="170"
-                 style="display:block;" alt="QR Code DSM"/>
+            {qr_block}
             <div style="font-size:15px; font-weight:700; letter-spacing:5px;
                         color:#333; margin-top:8px; font-family:monospace;">
                 {num}
