@@ -2,9 +2,9 @@
     'name': 'DSM - Programme Fidélité VIP',
     'version': '18.0.2.0.0',
     'category': 'Sales/CRM',
-    'summary': 'Carte virtuelle, analyse achats et recommandations — fusion DSM + Book VIP',
+    'summary': 'Carte virtuelle, analyse achats et recommandations pour Librairie DSM',
     'author': 'DSM Librairie',
-    'depends': ['base', 'sale', 'stock', 'contacts', 'book_vip'],
+    'depends': ['base', 'sale', 'stock', 'contacts'],
     'data': [
         'security/ir.model.access.csv',
         'data/mail_template_carte.xml',
