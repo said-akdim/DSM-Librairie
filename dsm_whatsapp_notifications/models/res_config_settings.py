@@ -38,7 +38,7 @@ class ResConfigSettings(models.TransientModel):
         ('les_deux', 'WhatsApp + SMS (les deux canaux)'),
     ], string='Mode d\'envoi des notifications',
         config_parameter='dsm_whatsapp.notification_mode',
-        default='whatsapp',
+        default='les_deux',
     )
 
     # ── Inwi Business SMS ───────────────────────────────────────────────────────
