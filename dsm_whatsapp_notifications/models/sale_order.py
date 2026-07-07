@@ -19,7 +19,7 @@ MSG_TEMPLATES = {
     'commande_confirmee': (
         "Bonjour {name},\n\n"
         "✅ Votre commande *{ref}* est confirmée et en cours de traitement.\n"
-        "Montant : *{amount} DH*\n\n"
+        "Nombre d'articles : *{nb_articles}*\n\n"
         "Nous vous tiendrons informé(e) de l'avancement.\n"
         "— DSM Librairie"
     ),
@@ -189,11 +189,13 @@ class SaleOrder(models.Model):
         if not phone:
             return False
 
+        nb_articles = int(sum(l.product_uom_qty for l in self.order_line))
         tpl = MSG_TEMPLATES.get(event, '')
         msg = tpl.format(
             name=partner.name,
             ref=self.name,
             amount=f'{self.amount_total:.2f}',
+            nb_articles=nb_articles,
             titre=titre or '',
         )
 
