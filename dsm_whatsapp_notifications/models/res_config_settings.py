@@ -32,6 +32,71 @@ class ResConfigSettings(models.TransientModel):
         help='Indicatif international sans le + (ex: 212 pour le Maroc)',
     )
 
+    notification_mode = fields.Selection([
+        ('whatsapp', 'WhatsApp uniquement'),
+        ('sms', 'SMS uniquement (Twilio)'),
+        ('les_deux', 'WhatsApp + SMS (les deux canaux)'),
+    ], string='Mode d\'envoi des notifications',
+        config_parameter='dsm_whatsapp.notification_mode',
+        default='whatsapp',
+    )
+
+    # ── Twilio SMS ──────────────────────────────────────────────────────────────
+    sms_account_sid = fields.Char(
+        string='Twilio Account SID',
+        config_parameter='dsm_whatsapp.sms_account_sid',
+        help='Trouvez-le sur console.twilio.com → Dashboard',
+    )
+    sms_auth_token = fields.Char(
+        string='Twilio Auth Token',
+        config_parameter='dsm_whatsapp.sms_auth_token',
+    )
+    sms_from = fields.Char(
+        string='Numéro expéditeur Twilio',
+        config_parameter='dsm_whatsapp.sms_from',
+        help='Numéro Twilio au format E.164 : +12025551234',
+        placeholder='+12025551234',
+    )
+
+    def action_test_sms(self):
+        """Envoie un SMS de test via Twilio."""
+        self.ensure_one()
+        ICP = self.env['ir.config_parameter'].sudo()
+        account_sid = ICP.get_param('dsm_whatsapp.sms_account_sid', '')
+        auth_token = ICP.get_param('dsm_whatsapp.sms_auth_token', '')
+        from_number = ICP.get_param('dsm_whatsapp.sms_from', '')
+
+        if not account_sid or not auth_token or not from_number:
+            raise UserError(_('Veuillez renseigner Account SID, Auth Token et Numéro expéditeur avant de tester.'))
+
+        try:
+            from requests.auth import HTTPBasicAuth
+            resp = requests.post(
+                f"https://api.twilio.com/2010-04-01/Accounts/{account_sid}/Messages.json",
+                data={
+                    'From': from_number,
+                    'To': from_number,  # test : s'envoyer à soi-même
+                    'Body': 'Test SMS DSM Librairie ✅',
+                },
+                auth=HTTPBasicAuth(account_sid, auth_token),
+                timeout=10,
+            )
+            data = resp.json()
+            if resp.status_code in (200, 201) and data.get('sid'):
+                return {
+                    'type': 'ir.actions.client',
+                    'tag': 'display_notification',
+                    'params': {
+                        'title': _('SMS Twilio configuré ✅'),
+                        'message': _('SMS de test envoyé avec succès (SID: %s)') % data['sid'],
+                        'type': 'success',
+                        'sticky': False,
+                    },
+                }
+            raise UserError(_('Réponse Twilio inattendue : %s') % str(data))
+        except requests.RequestException as e:
+            raise UserError(_('Erreur de connexion Twilio : %s') % str(e))
+
     def action_test_whatsapp(self):
         """Envoie un message de test au numéro configuré."""
         self.ensure_one()

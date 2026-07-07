@@ -8,7 +8,7 @@
         <field name="arch" type="xml">
             <xpath expr="//div[hasclass('settings')]" position="inside">
                 <div class="app_settings_block" data-string="WhatsApp DSM" string="WhatsApp DSM" data-key="dsm_whatsapp">
-                    <h2>Notifications WhatsApp</h2>
+                    <h2>Notifications clients DSM</h2>
                     <div class="row mt16 o_settings_container">
 
                         <!-- Activation -->
@@ -17,77 +17,139 @@
                                 <field name="whatsapp_enabled"/>
                             </div>
                             <div class="o_setting_right_pane">
-                                <label for="whatsapp_enabled"/>
+                                <label for="whatsapp_enabled" string="Activer les notifications clients"/>
                                 <div class="text-muted">
-                                    Envoyer automatiquement des messages WhatsApp aux clients lors des événements de commande.
+                                    Envoyer automatiquement des messages (WhatsApp et/ou SMS) lors des événements de commande.
                                 </div>
                             </div>
                         </div>
 
+                        <!-- Mode d'envoi -->
+                        <div class="col-12 o_setting_box" attrs="{'invisible': [('whatsapp_enabled', '=', False)]}">
+                            <div class="o_setting_right_pane">
+                                <label for="notification_mode" string="Canal de notification"/>
+                                <div class="text-muted">
+                                    <strong>Conseil :</strong> choisissez SMS ou « les deux » si WhatsApp ne délivre pas les messages
+                                    (hors fenêtre 24h sans template Meta approuvé).
+                                </div>
+                                <field name="notification_mode" widget="radio"/>
+                            </div>
+                        </div>
+
+                    </div>
+
+                    <!-- ══ Section WhatsApp ══ -->
+                    <div class="row mt16 o_settings_container"
+                         attrs="{'invisible': ['|', ('whatsapp_enabled', '=', False), ('notification_mode', '=', 'sms')]}">
+                        <div class="col-12"><h3>💬 WhatsApp Business (Meta)</h3></div>
+
                         <!-- Token -->
-                        <div class="col-12 col-lg-6 o_setting_box" attrs="{'invisible': [('whatsapp_enabled', '=', False)]}">
+                        <div class="col-12 col-lg-6 o_setting_box">
                             <div class="o_setting_right_pane">
                                 <label for="whatsapp_token" string="Token d'accès API"/>
-                                <div class="text-muted">
-                                    Token Bearer de l'API WhatsApp Business Cloud (Meta Graph API).
-                                </div>
+                                <div class="text-muted">Token Bearer de l'API WhatsApp Business Cloud (Meta Graph API).</div>
                                 <field name="whatsapp_token" password="True" placeholder="EAABxxxxxx..."/>
                             </div>
                         </div>
 
                         <!-- Phone Number ID -->
-                        <div class="col-12 col-lg-6 o_setting_box" attrs="{'invisible': [('whatsapp_enabled', '=', False)]}">
+                        <div class="col-12 col-lg-6 o_setting_box">
                             <div class="o_setting_right_pane">
                                 <label for="whatsapp_phone_id" string="Phone Number ID"/>
-                                <div class="text-muted">
-                                    ID du numéro WhatsApp Business dans le portail Meta for Developers.
-                                </div>
+                                <div class="text-muted">ID du numéro WhatsApp Business dans le portail Meta for Developers.</div>
                                 <field name="whatsapp_phone_id" placeholder="123456789012345"/>
                             </div>
                         </div>
 
                         <!-- Indicatif pays -->
-                        <div class="col-12 col-lg-6 o_setting_box" attrs="{'invisible': [('whatsapp_enabled', '=', False)]}">
+                        <div class="col-12 col-lg-6 o_setting_box">
                             <div class="o_setting_right_pane">
                                 <label for="whatsapp_default_country" string="Indicatif pays par défaut"/>
-                                <div class="text-muted">
-                                    Utilisé pour convertir les numéros locaux (ex : 212 pour le Maroc).
-                                </div>
+                                <div class="text-muted">Utilisé pour convertir les numéros locaux (ex : 212 pour le Maroc).</div>
                                 <field name="whatsapp_default_country" placeholder="212"/>
                             </div>
                         </div>
 
                         <!-- URL API (avancé) -->
-                        <div class="col-12 col-lg-6 o_setting_box" attrs="{'invisible': [('whatsapp_enabled', '=', False)]}">
+                        <div class="col-12 col-lg-6 o_setting_box">
                             <div class="o_setting_right_pane">
                                 <label for="whatsapp_api_url" string="URL de l'API (avancé)"/>
                                 <field name="whatsapp_api_url" placeholder="https://graph.facebook.com/v19.0"/>
                             </div>
                         </div>
 
-                        <!-- Bouton test -->
-                        <div class="col-12 o_setting_box" attrs="{'invisible': [('whatsapp_enabled', '=', False)]}">
+                        <!-- Bouton test WhatsApp -->
+                        <div class="col-12 o_setting_box">
                             <div class="o_setting_right_pane">
                                 <button name="action_test_whatsapp"
-                                        string="🔗 Tester la connexion"
+                                        string="🔗 Tester la connexion WhatsApp"
                                         type="object"
                                         class="btn btn-secondary mt8"/>
                             </div>
                         </div>
-
                     </div>
 
-                    <!-- Guide rapide -->
+                    <!-- ══ Section SMS Twilio ══ -->
+                    <div class="row mt16 o_settings_container"
+                         attrs="{'invisible': ['|', ('whatsapp_enabled', '=', False), ('notification_mode', '=', 'whatsapp')]}">
+                        <div class="col-12"><h3>📱 SMS via Twilio</h3></div>
+
+                        <div class="col-12">
+                            <div class="alert alert-warning" role="alert">
+                                <strong>💡 Pourquoi SMS ?</strong>
+                                WhatsApp renvoie un HTTP 200 « Envoyé » mais ne délivre le message que si le client
+                                a initié une conversation dans les 24h précédentes, ou si vous utilisez des templates
+                                approuvés par Meta. Le SMS Twilio est délivré immédiatement sans ces restrictions.<br/>
+                                Créez un compte gratuit sur
+                                <a href="https://www.twilio.com/try-twilio" target="_blank">twilio.com</a>
+                                (crédits d'essai inclus).
+                            </div>
+                        </div>
+
+                        <!-- Account SID -->
+                        <div class="col-12 col-lg-6 o_setting_box">
+                            <div class="o_setting_right_pane">
+                                <label for="sms_account_sid" string="Twilio Account SID"/>
+                                <div class="text-muted">Trouvez-le sur console.twilio.com → Dashboard</div>
+                                <field name="sms_account_sid" placeholder="ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"/>
+                            </div>
+                        </div>
+
+                        <!-- Auth Token -->
+                        <div class="col-12 col-lg-6 o_setting_box">
+                            <div class="o_setting_right_pane">
+                                <label for="sms_auth_token" string="Twilio Auth Token"/>
+                                <field name="sms_auth_token" password="True" placeholder="votre auth token"/>
+                            </div>
+                        </div>
+
+                        <!-- Numéro expéditeur -->
+                        <div class="col-12 col-lg-6 o_setting_box">
+                            <div class="o_setting_right_pane">
+                                <label for="sms_from" string="Numéro expéditeur"/>
+                                <div class="text-muted">
+                                    Numéro Twilio au format E.164 (+12025551234) ou Alphanumeric Sender ID (ex: DSM).
+                                </div>
+                                <field name="sms_from" placeholder="+12025551234"/>
+                            </div>
+                        </div>
+
+                        <!-- Bouton test SMS -->
+                        <div class="col-12 col-lg-6 o_setting_box">
+                            <div class="o_setting_right_pane">
+                                <button name="action_test_sms"
+                                        string="📱 Tester SMS Twilio"
+                                        type="object"
+                                        class="btn btn-secondary mt8"/>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Événements déclencheurs -->
                     <div class="row mt16" attrs="{'invisible': [('whatsapp_enabled', '=', False)]}">
                         <div class="col-12">
                             <div class="alert alert-info" role="alert">
-                                <strong>📋 Configuration rapide :</strong><br/>
-                                1. Créez une application sur <a href="https://developers.facebook.com" target="_blank">developers.facebook.com</a><br/>
-                                2. Ajoutez le produit <strong>WhatsApp</strong> à votre app<br/>
-                                3. Récupérez le <strong>Token d'accès temporaire</strong> et le <strong>Phone Number ID</strong><br/>
-                                4. Pour la production, générez un token permanent via un System User<br/>
-                                <br/>
-                                <strong>Événements déclencheurs :</strong><br/>
+                                <strong>📋 Événements déclencheurs :</strong><br/>
                                 • <strong>Commande créée</strong> : dès qu'une commande est enregistrée<br/>
                                 • <strong>Commande confirmée</strong> : lors de la confirmation (action_confirm)<br/>
                                 • <strong>Réception</strong> : bouton manuel sur la commande<br/>

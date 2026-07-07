@@ -58,6 +58,15 @@ class SaleOrder(models.Model):
             'phone_id': ICP.get_param('dsm_whatsapp.phone_id', ''),
             'api_url': ICP.get_param('dsm_whatsapp.api_url', 'https://graph.facebook.com/v19.0'),
             'country_code': ICP.get_param('dsm_whatsapp.country_code', '212'),
+            'mode': ICP.get_param('dsm_whatsapp.notification_mode', 'whatsapp'),
+        }
+
+    def _sms_config(self):
+        ICP = self.env['ir.config_parameter'].sudo()
+        return {
+            'account_sid': ICP.get_param('dsm_whatsapp.sms_account_sid', ''),
+            'auth_token': ICP.get_param('dsm_whatsapp.sms_auth_token', ''),
+            'from_number': ICP.get_param('dsm_whatsapp.sms_from', ''),
         }
 
     def _wa_format_phone(self, phone, country_code='212'):
@@ -76,6 +85,7 @@ class SaleOrder(models.Model):
         """Envoie un message via WhatsApp Business Cloud API et log le résultat."""
         cfg = self._wa_config()
         log_vals = {
+            'canal': 'whatsapp',
             'partner_id': self.partner_id.id,
             'phone': phone,
             'message': message,
@@ -121,8 +131,59 @@ class SaleOrder(models.Model):
             })
             return False
 
+    def _sms_send(self, phone, message, event):
+        """Envoie un SMS via Twilio et log le résultat."""
+        sms = self._sms_config()
+        log_vals = {
+            'canal': 'sms',
+            'partner_id': self.partner_id.id,
+            'phone': phone,
+            'message': message,
+            'event': event,
+            'sale_order_id': self.id,
+        }
+
+        if not sms['account_sid'] or not sms['auth_token']:
+            self.env['dsm.whatsapp.log'].sudo().create({
+                **log_vals, 'statut': 'erreur',
+                'erreur_detail': 'Twilio Account SID ou Auth Token manquant dans la configuration.',
+            })
+            return False
+
+        if not sms['from_number']:
+            self.env['dsm.whatsapp.log'].sudo().create({
+                **log_vals, 'statut': 'erreur',
+                'erreur_detail': 'Numéro expéditeur Twilio (sms_from) non configuré.',
+            })
+            return False
+
+        # Supprimer le formatage WhatsApp (*bold*) pour le SMS
+        sms_body = message.replace('*', '')
+
+        try:
+            from requests.auth import HTTPBasicAuth
+            resp = requests.post(
+                f"https://api.twilio.com/2010-04-01/Accounts/{sms['account_sid']}/Messages.json",
+                data={
+                    'From': sms['from_number'],
+                    'To': f'+{phone}',
+                    'Body': sms_body,
+                },
+                auth=HTTPBasicAuth(sms['account_sid'], sms['auth_token']),
+                timeout=10,
+            )
+            resp.raise_for_status()
+            self.env['dsm.whatsapp.log'].sudo().create({**log_vals, 'statut': 'succes'})
+            return True
+        except Exception as exc:
+            _logger.warning('SMS send error [%s]: %s', event, exc)
+            self.env['dsm.whatsapp.log'].sudo().create({
+                **log_vals, 'statut': 'erreur', 'erreur_detail': str(exc),
+            })
+            return False
+
     def _wa_notify(self, event, titre=None):
-        """Prépare le message et déclenche l'envoi pour cet enregistrement."""
+        """Prépare le message et déclenche l'envoi selon le mode configuré."""
         self.ensure_one()
         cfg = self._wa_config()
         partner = self.partner_id
@@ -140,7 +201,17 @@ class SaleOrder(models.Model):
             amount=f'{self.amount_total:.2f}',
             titre=titre or '',
         )
-        return self._wa_send(phone, msg, event)
+
+        mode = cfg.get('mode', 'whatsapp')
+        wa_ok = False
+        sms_ok = False
+
+        if mode in ('whatsapp', 'les_deux'):
+            wa_ok = self._wa_send(phone, msg, event)
+        if mode in ('sms', 'les_deux'):
+            sms_ok = self._sms_send(phone, msg, event)
+
+        return wa_ok or sms_ok
 
     # ─── Hooks automatiques ──────────────────────────────────────────────────
 

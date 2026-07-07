@@ -6,8 +6,12 @@
         <field name="name">dsm.whatsapp.log.list</field>
         <field name="model">dsm.whatsapp.log</field>
         <field name="arch" type="xml">
-            <list string="Journal WhatsApp" default_order="date_envoi desc" decoration-danger="statut == 'erreur'" decoration-muted="statut == 'desactive'">
+            <list string="Journal des messages" default_order="date_envoi desc"
+                  decoration-danger="statut == 'erreur'" decoration-muted="statut == 'desactive'">
                 <field name="date_envoi"/>
+                <field name="canal" widget="badge"
+                    decoration-success="canal == 'whatsapp'"
+                    decoration-info="canal == 'sms'"/>
                 <field name="partner_id"/>
                 <field name="phone"/>
                 <field name="event"/>
@@ -25,7 +29,7 @@
         <field name="name">dsm.whatsapp.log.form</field>
         <field name="model">dsm.whatsapp.log</field>
         <field name="arch" type="xml">
-            <form string="Message WhatsApp" create="false" edit="false">
+            <form string="Message envoyé" create="false" edit="false">
                 <sheet>
                     <group>
                         <group string="Destinataire">
@@ -34,6 +38,9 @@
                             <field name="sale_order_id"/>
                         </group>
                         <group string="Envoi">
+                            <field name="canal" widget="badge"
+                                decoration-success="canal == 'whatsapp'"
+                                decoration-info="canal == 'sms'"/>
                             <field name="event"/>
                             <field name="date_envoi"/>
                             <field name="statut" widget="badge"
@@ -55,12 +62,12 @@
 
     <!-- Action -->
     <record id="action_dsm_whatsapp_log" model="ir.actions.act_window">
-        <field name="name">Journal WhatsApp</field>
+        <field name="name">Journal des messages</field>
         <field name="res_model">dsm.whatsapp.log</field>
         <field name="view_mode">list,form</field>
         <field name="help" type="html">
             <p class="o_view_nocontent_smiling_face">
-                Aucun message WhatsApp envoyé pour l'instant.
+                Aucun message envoyé pour l'instant.
             </p>
         </field>
     </record>

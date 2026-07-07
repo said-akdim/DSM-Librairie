@@ -7,8 +7,12 @@ class DsmWhatsappLog(models.Model):
     _order = 'date_envoi desc'
     _rec_name = 'sale_order_id'
 
+    canal = fields.Selection([
+        ('whatsapp', 'WhatsApp'),
+        ('sms', 'SMS'),
+    ], string='Canal', readonly=True, default='whatsapp')
     partner_id = fields.Many2one('res.partner', string='Client', readonly=True, index=True)
-    phone = fields.Char(string='Numéro WhatsApp', readonly=True)
+    phone = fields.Char(string='Téléphone', readonly=True)
     message = fields.Text(string='Message envoyé', readonly=True)
     event = fields.Selection([
         ('commande_creee', 'Commande créée'),
