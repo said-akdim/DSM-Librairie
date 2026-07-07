@@ -29,8 +29,7 @@
                             <div class="o_setting_right_pane">
                                 <label for="notification_mode" string="Canal de notification"/>
                                 <div class="text-muted">
-                                    <strong>Conseil :</strong> choisissez SMS ou « les deux » si WhatsApp ne délivre pas les messages
-                                    (hors fenêtre 24h sans template Meta approuvé).
+                                    Choisissez le canal d'envoi selon votre configuration disponible.
                                 </div>
                                 <field name="notification_mode" widget="radio"/>
                             </div>
@@ -89,58 +88,66 @@
                         </div>
                     </div>
 
-                    <!-- ══ Section SMS Twilio ══ -->
+                    <!-- ══ Section SMS Inwi ══ -->
                     <div class="row mt16 o_settings_container"
                          attrs="{'invisible': ['|', ('whatsapp_enabled', '=', False), ('notification_mode', '=', 'whatsapp')]}">
-                        <div class="col-12"><h3>📱 SMS via Twilio</h3></div>
+                        <div class="col-12"><h3>📱 SMS via Inwi Business</h3></div>
 
-                        <div class="col-12">
-                            <div class="alert alert-warning" role="alert">
-                                <strong>💡 Pourquoi SMS ?</strong>
-                                WhatsApp renvoie un HTTP 200 « Envoyé » mais ne délivre le message que si le client
-                                a initié une conversation dans les 24h précédentes, ou si vous utilisez des templates
-                                approuvés par Meta. Le SMS Twilio est délivré immédiatement sans ces restrictions.<br/>
-                                Créez un compte gratuit sur
-                                <a href="https://www.twilio.com/try-twilio" target="_blank">twilio.com</a>
-                                (crédits d'essai inclus).
-                            </div>
-                        </div>
-
-                        <!-- Account SID -->
+                        <!-- URL API -->
                         <div class="col-12 col-lg-6 o_setting_box">
                             <div class="o_setting_right_pane">
-                                <label for="sms_account_sid" string="Twilio Account SID"/>
-                                <div class="text-muted">Trouvez-le sur console.twilio.com → Dashboard</div>
-                                <field name="sms_account_sid" placeholder="ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"/>
-                            </div>
-                        </div>
-
-                        <!-- Auth Token -->
-                        <div class="col-12 col-lg-6 o_setting_box">
-                            <div class="o_setting_right_pane">
-                                <label for="sms_auth_token" string="Twilio Auth Token"/>
-                                <field name="sms_auth_token" password="True" placeholder="votre auth token"/>
-                            </div>
-                        </div>
-
-                        <!-- Numéro expéditeur -->
-                        <div class="col-12 col-lg-6 o_setting_box">
-                            <div class="o_setting_right_pane">
-                                <label for="sms_from" string="Numéro expéditeur"/>
+                                <label for="sms_api_url" string="URL endpoint API Inwi"/>
                                 <div class="text-muted">
-                                    Numéro Twilio au format E.164 (+12025551234) ou Alphanumeric Sender ID (ex: DSM).
+                                    URL fournie par Inwi Business pour l'envoi SMS (ex: https://api.inwi.ma/sms/send).
                                 </div>
-                                <field name="sms_from" placeholder="+12025551234"/>
+                                <field name="sms_api_url" placeholder="https://api.inwi.ma/sms/send"/>
+                            </div>
+                        </div>
+
+                        <!-- Login -->
+                        <div class="col-12 col-lg-6 o_setting_box">
+                            <div class="o_setting_right_pane">
+                                <label for="sms_login" string="Login Inwi SMS"/>
+                                <div class="text-muted">Identifiant fourni par Inwi Business.</div>
+                                <field name="sms_login" placeholder="votre_login_inwi"/>
+                            </div>
+                        </div>
+
+                        <!-- Mot de passe -->
+                        <div class="col-12 col-lg-6 o_setting_box">
+                            <div class="o_setting_right_pane">
+                                <label for="sms_password" string="Mot de passe Inwi SMS"/>
+                                <field name="sms_password" password="True" placeholder="votre_mot_de_passe"/>
+                            </div>
+                        </div>
+
+                        <!-- Sender ID -->
+                        <div class="col-12 col-lg-6 o_setting_box">
+                            <div class="o_setting_right_pane">
+                                <label for="sms_sender" string="Nom expéditeur (Sender ID)"/>
+                                <div class="text-muted">
+                                    Nom affiché chez le destinataire. Maximum 11 caractères alphanumériques (ex: DSM).
+                                </div>
+                                <field name="sms_sender" placeholder="DSM"/>
                             </div>
                         </div>
 
                         <!-- Bouton test SMS -->
-                        <div class="col-12 col-lg-6 o_setting_box">
+                        <div class="col-12 o_setting_box">
                             <div class="o_setting_right_pane">
                                 <button name="action_test_sms"
-                                        string="📱 Tester SMS Twilio"
+                                        string="📱 Tester SMS Inwi (envoi sur votre numéro)"
                                         type="object"
                                         class="btn btn-secondary mt8"/>
+                            </div>
+                        </div>
+
+                        <div class="col-12">
+                            <div class="alert alert-info" role="alert">
+                                <strong>💡 Format de la requête envoyée à Inwi :</strong><br/>
+                                <code>POST [URL API]</code> avec Basic Auth (login:mot de passe)<br/>
+                                Corps JSON : <code>{"to": "+212XXXXXXXXX", "from": "DSM", "text": "..."}</code><br/>
+                                Si Inwi utilise un format différent, contactez le support pour adapter le connecteur.
                             </div>
                         </div>
                     </div>

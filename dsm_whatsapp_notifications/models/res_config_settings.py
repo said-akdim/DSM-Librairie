@@ -34,68 +34,82 @@ class ResConfigSettings(models.TransientModel):
 
     notification_mode = fields.Selection([
         ('whatsapp', 'WhatsApp uniquement'),
-        ('sms', 'SMS uniquement (Twilio)'),
+        ('sms', 'SMS uniquement (Inwi Business)'),
         ('les_deux', 'WhatsApp + SMS (les deux canaux)'),
     ], string='Mode d\'envoi des notifications',
         config_parameter='dsm_whatsapp.notification_mode',
         default='whatsapp',
     )
 
-    # ── Twilio SMS ──────────────────────────────────────────────────────────────
-    sms_account_sid = fields.Char(
-        string='Twilio Account SID',
-        config_parameter='dsm_whatsapp.sms_account_sid',
-        help='Trouvez-le sur console.twilio.com → Dashboard',
+    # ── Inwi Business SMS ───────────────────────────────────────────────────────
+    sms_api_url = fields.Char(
+        string='URL API Inwi SMS',
+        config_parameter='dsm_whatsapp.sms_api_url',
+        help='URL de l\'endpoint SMS fournie par Inwi Business (ex: https://api.inwi.ma/sms/send)',
     )
-    sms_auth_token = fields.Char(
-        string='Twilio Auth Token',
-        config_parameter='dsm_whatsapp.sms_auth_token',
+    sms_login = fields.Char(
+        string='Login Inwi SMS',
+        config_parameter='dsm_whatsapp.sms_login',
+        help='Identifiant / username fourni par Inwi Business',
     )
-    sms_from = fields.Char(
-        string='Numéro expéditeur Twilio',
-        config_parameter='dsm_whatsapp.sms_from',
-        help='Numéro Twilio au format E.164 : +12025551234',
-        placeholder='+12025551234',
+    sms_password = fields.Char(
+        string='Mot de passe Inwi SMS',
+        config_parameter='dsm_whatsapp.sms_password',
+    )
+    sms_sender = fields.Char(
+        string='Nom expéditeur (Sender ID)',
+        config_parameter='dsm_whatsapp.sms_sender',
+        help='Nom affiché chez le destinataire (ex: DSM ou +212XXXXXXXXX). Max 11 caractères alphanumériques.',
+        placeholder='DSM',
     )
 
     def action_test_sms(self):
-        """Envoie un SMS de test via Twilio."""
+        """Envoie un SMS de test via Inwi Business SMS."""
         self.ensure_one()
         ICP = self.env['ir.config_parameter'].sudo()
-        account_sid = ICP.get_param('dsm_whatsapp.sms_account_sid', '')
-        auth_token = ICP.get_param('dsm_whatsapp.sms_auth_token', '')
-        from_number = ICP.get_param('dsm_whatsapp.sms_from', '')
+        api_url = ICP.get_param('dsm_whatsapp.sms_api_url', '')
+        login = ICP.get_param('dsm_whatsapp.sms_login', '')
+        password = ICP.get_param('dsm_whatsapp.sms_password', '')
+        sender = ICP.get_param('dsm_whatsapp.sms_sender', 'DSM')
+        country_code = ICP.get_param('dsm_whatsapp.country_code', '212')
 
-        if not account_sid or not auth_token or not from_number:
-            raise UserError(_('Veuillez renseigner Account SID, Auth Token et Numéro expéditeur avant de tester.'))
+        if not api_url or not login or not password:
+            raise UserError(_('Veuillez renseigner l\'URL API, le Login et le Mot de passe Inwi avant de tester.'))
+
+        # Récupère le téléphone de l'utilisateur courant pour le test
+        partner = self.env.user.partner_id
+        test_phone = partner.mobile or partner.phone or ''
+        if not test_phone:
+            raise UserError(_('Aucun numéro de téléphone trouvé sur votre profil pour le test.'))
+
+        # Normalisation numéro
+        digits = ''.join(c for c in test_phone if c.isdigit())
+        if digits.startswith('0') and len(digits) == 10:
+            digits = country_code + digits[1:]
+        to_phone = f'+{digits}'
 
         try:
             from requests.auth import HTTPBasicAuth
             resp = requests.post(
-                f"https://api.twilio.com/2010-04-01/Accounts/{account_sid}/Messages.json",
-                data={
-                    'From': from_number,
-                    'To': from_number,  # test : s'envoyer à soi-même
-                    'Body': 'Test SMS DSM Librairie ✅',
-                },
-                auth=HTTPBasicAuth(account_sid, auth_token),
+                api_url,
+                json={'to': to_phone, 'from': sender, 'text': 'Test SMS DSM Librairie ✅'},
+                auth=HTTPBasicAuth(login, password),
                 timeout=10,
             )
-            data = resp.json()
-            if resp.status_code in (200, 201) and data.get('sid'):
+            if resp.status_code in (200, 201, 202):
                 return {
                     'type': 'ir.actions.client',
                     'tag': 'display_notification',
                     'params': {
-                        'title': _('SMS Twilio configuré ✅'),
-                        'message': _('SMS de test envoyé avec succès (SID: %s)') % data['sid'],
+                        'title': _('SMS Inwi envoyé ✅'),
+                        'message': _('SMS de test envoyé à %s') % to_phone,
                         'type': 'success',
                         'sticky': False,
                     },
                 }
-            raise UserError(_('Réponse Twilio inattendue : %s') % str(data))
+            raise UserError(_('Réponse Inwi inattendue (HTTP %s) : %s') % (resp.status_code, resp.text[:300]))
         except requests.RequestException as e:
-            raise UserError(_('Erreur de connexion Twilio : %s') % str(e))
+            raise UserError(_('Erreur de connexion Inwi SMS : %s') % str(e))
 
     def action_test_whatsapp(self):
         """Envoie un message de test au numéro configuré."""

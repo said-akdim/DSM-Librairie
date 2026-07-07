@@ -64,9 +64,10 @@ class SaleOrder(models.Model):
     def _sms_config(self):
         ICP = self.env['ir.config_parameter'].sudo()
         return {
-            'account_sid': ICP.get_param('dsm_whatsapp.sms_account_sid', ''),
-            'auth_token': ICP.get_param('dsm_whatsapp.sms_auth_token', ''),
-            'from_number': ICP.get_param('dsm_whatsapp.sms_from', ''),
+            'api_url': ICP.get_param('dsm_whatsapp.sms_api_url', ''),
+            'login': ICP.get_param('dsm_whatsapp.sms_login', ''),
+            'password': ICP.get_param('dsm_whatsapp.sms_password', ''),
+            'sender': ICP.get_param('dsm_whatsapp.sms_sender', 'DSM'),
         }
 
     def _wa_format_phone(self, phone, country_code='212'):
@@ -132,7 +133,7 @@ class SaleOrder(models.Model):
             return False
 
     def _sms_send(self, phone, message, event):
-        """Envoie un SMS via Twilio et log le résultat."""
+        """Envoie un SMS via Inwi Business SMS API et log le résultat."""
         sms = self._sms_config()
         log_vals = {
             'canal': 'sms',
@@ -143,40 +144,34 @@ class SaleOrder(models.Model):
             'sale_order_id': self.id,
         }
 
-        if not sms['account_sid'] or not sms['auth_token']:
+        if not sms['api_url'] or not sms['login'] or not sms['password']:
             self.env['dsm.whatsapp.log'].sudo().create({
                 **log_vals, 'statut': 'erreur',
-                'erreur_detail': 'Twilio Account SID ou Auth Token manquant dans la configuration.',
+                'erreur_detail': 'URL API, Login ou Mot de passe Inwi SMS manquant dans la configuration.',
             })
             return False
 
-        if not sms['from_number']:
-            self.env['dsm.whatsapp.log'].sudo().create({
-                **log_vals, 'statut': 'erreur',
-                'erreur_detail': 'Numéro expéditeur Twilio (sms_from) non configuré.',
-            })
-            return False
-
-        # Supprimer le formatage WhatsApp (*bold*) pour le SMS
+        # Supprimer le formatage WhatsApp (*bold*) — SMS ne supporte pas le markdown
         sms_body = message.replace('*', '')
 
         try:
             from requests.auth import HTTPBasicAuth
             resp = requests.post(
-                f"https://api.twilio.com/2010-04-01/Accounts/{sms['account_sid']}/Messages.json",
-                data={
-                    'From': sms['from_number'],
-                    'To': f'+{phone}',
-                    'Body': sms_body,
+                sms['api_url'],
+                json={
+                    'to': f'+{phone}',
+                    'from': sms['sender'],
+                    'text': sms_body,
                 },
-                auth=HTTPBasicAuth(sms['account_sid'], sms['auth_token']),
+                auth=HTTPBasicAuth(sms['login'], sms['password']),
                 timeout=10,
             )
-            resp.raise_for_status()
+            if resp.status_code not in (200, 201, 202):
+                raise Exception(f'HTTP {resp.status_code}: {resp.text[:200]}')
             self.env['dsm.whatsapp.log'].sudo().create({**log_vals, 'statut': 'succes'})
             return True
         except Exception as exc:
-            _logger.warning('SMS send error [%s]: %s', event, exc)
+            _logger.warning('Inwi SMS send error [%s]: %s', event, exc)
             self.env['dsm.whatsapp.log'].sudo().create({
                 **log_vals, 'statut': 'erreur', 'erreur_detail': str(exc),
             })
