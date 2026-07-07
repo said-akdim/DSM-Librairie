@@ -42,6 +42,25 @@ To learn more about developing your project with Expo, look at the following res
 - [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
 - [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
 
+## Outils Odoo 18
+
+### Mise à jour en masse des prix de vente (CSV / Excel)
+
+Le script `update_prix_vente_csv.py` met à jour le prix de vente (`list_price`)
+de toute la base Odoo 18 à partir d'un fichier `.csv` ou `.xlsx` :
+
+```bash
+# Simulation (aucune écriture)
+python update_prix_vente_csv.py prix.csv --login admin
+
+# Application réelle
+python update_prix_vente_csv.py prix.csv --login admin --apply
+```
+
+Le fichier doit contenir une colonne d'identification (`barcode`/`isbn`/`ean`,
+`reference` ou `id`) et une colonne prix (`prix_vente`, `prix`, `pv`…).
+Voir `exemple_prix_vente.csv` pour le format, et l'en-tête du script pour les détails.
+
 ## Join the community
 
 Join our community of developers creating universal apps.
