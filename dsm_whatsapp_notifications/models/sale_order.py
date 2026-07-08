@@ -286,16 +286,13 @@ class SaleOrder(models.Model):
             'context': {'default_sale_order_id': self.id},
         }
 
+    wa_log_ids = fields.One2many('dsm.whatsapp.log', 'sale_order_id', string='Messages')
+    wa_log_count = fields.Integer(string='Messages WhatsApp', compute='_wa_log_count')
+
+    @api.depends('wa_log_ids')
     def _wa_log_count(self):
         for order in self:
-            order.wa_log_count = self.env['dsm.whatsapp.log'].search_count(
-                [('sale_order_id', '=', order.id)]
-            )
-
-    wa_log_count = fields.Integer(
-        string='Messages WhatsApp',
-        compute='_wa_log_count',
-    )
+            order.wa_log_count = len(order.wa_log_ids)
 
 
 class SaleOrderLine(models.Model):
