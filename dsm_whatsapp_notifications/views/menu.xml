@@ -8,13 +8,6 @@
         sequence="99"/>
 
     <menuitem
-        id="menu_dsm_whatsapp_settings"
-        name="Parametres"
-        parent="menu_dsm_whatsapp_root"
-        action="action_dsm_whatsapp_settings"
-        sequence="5"/>
-
-    <menuitem
         id="menu_dsm_whatsapp_log"
         name="Journal des messages"
         parent="menu_dsm_whatsapp_root"

@@ -1,73 +1,135 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
 
-    <record id="view_dsm_whatsapp_settings_form" model="ir.ui.view">
-        <field name="name">res.config.settings.whatsapp.standalone</field>
+    <record id="res_config_settings_view_form_wa" model="ir.ui.view">
+        <field name="name">res.config.settings.view.form.whatsapp</field>
         <field name="model">res.config.settings</field>
+        <field name="inherit_id" ref="base_setup.res_config_settings_view_form"/>
         <field name="arch" type="xml">
-            <form string="Notifications clients DSM">
-                <header>
-                    <button string="Enregistrer" name="execute" type="object" class="btn btn-primary" data-hotkey="s"/>
-                    <button string="Annuler" name="cancel" type="object" class="btn btn-secondary" data-hotkey="j"/>
-                </header>
-                <sheet>
+            <form position="inside">
+                <div class="app_settings_block" data-string="WhatsApp DSM" string="WhatsApp DSM" data-key="dsm_whatsapp">
                     <h2>Notifications clients DSM</h2>
+                    <div class="row mt16 o_settings_container">
 
-                    <!-- Activation -->
-                    <group>
-                        <field name="whatsapp_enabled" string="Activer les notifications clients (WhatsApp / SMS)"/>
-                    </group>
-
-                    <!-- Mode d'envoi -->
-                    <group string="Canal de notification" invisible="not whatsapp_enabled">
-                        <field name="notification_mode" widget="radio" nolabel="1"/>
-                    </group>
-
-                    <!-- Section WhatsApp Business -->
-                    <group string="WhatsApp Business (Meta)"
-                           invisible="not whatsapp_enabled or notification_mode == 'sms'">
-                        <group>
-                            <field name="whatsapp_token" password="True" placeholder="EAABxxxxxx..."/>
-                            <field name="whatsapp_phone_id" placeholder="123456789012345"/>
-                            <field name="whatsapp_default_country" placeholder="212"/>
-                            <field name="whatsapp_api_url" placeholder="https://graph.facebook.com/v19.0"/>
-                        </group>
-                        <div>
-                            <button name="action_test_whatsapp"
-                                    string="Tester la connexion WhatsApp"
-                                    type="object"
-                                    class="btn btn-secondary mt8"/>
+                        <!-- Activation -->
+                        <div class="col-12 col-lg-6 o_setting_box">
+                            <div class="o_setting_left_pane">
+                                <field name="whatsapp_enabled"/>
+                            </div>
+                            <div class="o_setting_right_pane">
+                                <label for="whatsapp_enabled" string="Activer les notifications clients"/>
+                                <div class="text-muted">
+                                    Envoyer automatiquement des messages (WhatsApp et/ou SMS) lors des événements de commande.
+                                </div>
+                            </div>
                         </div>
-                    </group>
+
+                        <!-- Mode d'envoi -->
+                        <div class="col-12 o_setting_box" invisible="not whatsapp_enabled">
+                            <div class="o_setting_right_pane">
+                                <label for="notification_mode" string="Canal de notification"/>
+                                <div class="text-muted">
+                                    Choisissez le canal d'envoi selon votre configuration disponible.
+                                </div>
+                                <field name="notification_mode" widget="radio"/>
+                            </div>
+                        </div>
+
+                    </div>
+
+                    <!-- Section WhatsApp -->
+                    <div class="row mt16 o_settings_container"
+                         invisible="not whatsapp_enabled or notification_mode == 'sms'">
+                        <div class="col-12"><h3>WhatsApp Business (Meta)</h3></div>
+
+                        <div class="col-12 col-lg-6 o_setting_box">
+                            <div class="o_setting_right_pane">
+                                <label for="whatsapp_token" string="Token d'accès API"/>
+                                <div class="text-muted">Token Bearer de l'API WhatsApp Business Cloud (Meta Graph API).</div>
+                                <field name="whatsapp_token" password="True" placeholder="EAABxxxxxx..."/>
+                            </div>
+                        </div>
+
+                        <div class="col-12 col-lg-6 o_setting_box">
+                            <div class="o_setting_right_pane">
+                                <label for="whatsapp_phone_id" string="Phone Number ID"/>
+                                <div class="text-muted">ID du numéro WhatsApp Business dans le portail Meta for Developers.</div>
+                                <field name="whatsapp_phone_id" placeholder="123456789012345"/>
+                            </div>
+                        </div>
+
+                        <div class="col-12 col-lg-6 o_setting_box">
+                            <div class="o_setting_right_pane">
+                                <label for="whatsapp_default_country" string="Indicatif pays par défaut"/>
+                                <div class="text-muted">Utilisé pour convertir les numéros locaux (ex : 212 pour le Maroc).</div>
+                                <field name="whatsapp_default_country" placeholder="212"/>
+                            </div>
+                        </div>
+
+                        <div class="col-12 col-lg-6 o_setting_box">
+                            <div class="o_setting_right_pane">
+                                <label for="whatsapp_api_url" string="URL de l'API (avancé)"/>
+                                <field name="whatsapp_api_url" placeholder="https://graph.facebook.com/v19.0"/>
+                            </div>
+                        </div>
+
+                        <div class="col-12 o_setting_box">
+                            <div class="o_setting_right_pane">
+                                <button name="action_test_whatsapp"
+                                        string="Tester la connexion WhatsApp"
+                                        type="object"
+                                        class="btn btn-secondary mt8"/>
+                            </div>
+                        </div>
+                    </div>
 
                     <!-- Section SMS Inwi -->
-                    <group string="SMS via Inwi Business"
-                           invisible="not whatsapp_enabled or notification_mode == 'whatsapp'">
-                        <group>
-                            <field name="sms_api_url" placeholder="https://api.inwi.ma/sms/send"/>
-                            <field name="sms_login" placeholder="votre_login_inwi"/>
-                            <field name="sms_password" password="True"/>
-                            <field name="sms_sender" placeholder="DSM"/>
-                        </group>
-                        <div>
-                            <button name="action_test_sms"
-                                    string="Tester SMS Inwi"
-                                    type="object"
-                                    class="btn btn-secondary mt8"/>
-                        </div>
-                    </group>
+                    <div class="row mt16 o_settings_container"
+                         invisible="not whatsapp_enabled or notification_mode == 'whatsapp'">
+                        <div class="col-12"><h3>SMS via Inwi Business</h3></div>
 
-                </sheet>
+                        <div class="col-12 col-lg-6 o_setting_box">
+                            <div class="o_setting_right_pane">
+                                <label for="sms_api_url" string="URL endpoint API Inwi"/>
+                                <div class="text-muted">URL fournie par Inwi Business pour l'envoi SMS.</div>
+                                <field name="sms_api_url" placeholder="https://api.inwi.ma/sms/send"/>
+                            </div>
+                        </div>
+
+                        <div class="col-12 col-lg-6 o_setting_box">
+                            <div class="o_setting_right_pane">
+                                <label for="sms_login" string="Login Inwi SMS"/>
+                                <field name="sms_login" placeholder="votre_login_inwi"/>
+                            </div>
+                        </div>
+
+                        <div class="col-12 col-lg-6 o_setting_box">
+                            <div class="o_setting_right_pane">
+                                <label for="sms_password" string="Mot de passe Inwi SMS"/>
+                                <field name="sms_password" password="True"/>
+                            </div>
+                        </div>
+
+                        <div class="col-12 col-lg-6 o_setting_box">
+                            <div class="o_setting_right_pane">
+                                <label for="sms_sender" string="Nom expéditeur (Sender ID)"/>
+                                <div class="text-muted">Nom affiché chez le destinataire. Max 11 caractères.</div>
+                                <field name="sms_sender" placeholder="DSM"/>
+                            </div>
+                        </div>
+
+                        <div class="col-12 o_setting_box">
+                            <div class="o_setting_right_pane">
+                                <button name="action_test_sms"
+                                        string="Tester SMS Inwi"
+                                        type="object"
+                                        class="btn btn-secondary mt8"/>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </form>
         </field>
-    </record>
-
-    <record id="action_dsm_whatsapp_settings" model="ir.actions.act_window">
-        <field name="name">Paramètres WhatsApp DSM</field>
-        <field name="res_model">res.config.settings</field>
-        <field name="view_mode">form</field>
-        <field name="view_id" ref="view_dsm_whatsapp_settings_form"/>
-        <field name="target">inline</field>
     </record>
 
 </odoo>
