@@ -52,7 +52,7 @@
                     <group string="Contenu du message">
                         <field name="message" nolabel="1" widget="text"/>
                     </group>
-                    <group string="Détail erreur" attrs="{'invisible': [('erreur_detail', '=', False)]}">
+                    <group string="Détail erreur" invisible="not erreur_detail">
                         <field name="erreur_detail" nolabel="1" widget="text"/>
                     </group>
                 </sheet>

@@ -25,7 +25,7 @@
                         </div>
 
                         <!-- Mode d'envoi -->
-                        <div class="col-12 o_setting_box" attrs="{'invisible': [('whatsapp_enabled', '=', False)]}">
+                        <div class="col-12 o_setting_box" invisible="not whatsapp_enabled">
                             <div class="o_setting_right_pane">
                                 <label for="notification_mode" string="Canal de notification"/>
                                 <div class="text-muted">
@@ -39,10 +39,9 @@
 
                     <!-- ══ Section WhatsApp ══ -->
                     <div class="row mt16 o_settings_container"
-                         attrs="{'invisible': ['|', ('whatsapp_enabled', '=', False), ('notification_mode', '=', 'sms')]}">
+                         invisible="not whatsapp_enabled or notification_mode == 'sms'">
                         <div class="col-12"><h3>💬 WhatsApp Business (Meta)</h3></div>
 
-                        <!-- Token -->
                         <div class="col-12 col-lg-6 o_setting_box">
                             <div class="o_setting_right_pane">
                                 <label for="whatsapp_token" string="Token d'accès API"/>
@@ -51,7 +50,6 @@
                             </div>
                         </div>
 
-                        <!-- Phone Number ID -->
                         <div class="col-12 col-lg-6 o_setting_box">
                             <div class="o_setting_right_pane">
                                 <label for="whatsapp_phone_id" string="Phone Number ID"/>
@@ -60,7 +58,6 @@
                             </div>
                         </div>
 
-                        <!-- Indicatif pays -->
                         <div class="col-12 col-lg-6 o_setting_box">
                             <div class="o_setting_right_pane">
                                 <label for="whatsapp_default_country" string="Indicatif pays par défaut"/>
@@ -69,7 +66,6 @@
                             </div>
                         </div>
 
-                        <!-- URL API (avancé) -->
                         <div class="col-12 col-lg-6 o_setting_box">
                             <div class="o_setting_right_pane">
                                 <label for="whatsapp_api_url" string="URL de l'API (avancé)"/>
@@ -77,7 +73,6 @@
                             </div>
                         </div>
 
-                        <!-- Bouton test WhatsApp -->
                         <div class="col-12 o_setting_box">
                             <div class="o_setting_right_pane">
                                 <button name="action_test_whatsapp"
@@ -90,49 +85,48 @@
 
                     <!-- ══ Section SMS Inwi ══ -->
                     <div class="row mt16 o_settings_container"
-                         attrs="{'invisible': ['|', ('whatsapp_enabled', '=', False), ('notification_mode', '=', 'whatsapp')]}">
+                         invisible="not whatsapp_enabled or notification_mode == 'whatsapp'">
                         <div class="col-12"><h3>📱 SMS via Inwi Business</h3></div>
 
-                        <!-- URL API -->
+                        <div class="col-12">
+                            <div class="alert alert-warning" role="alert">
+                                <strong>💡 Pourquoi SMS ?</strong>
+                                WhatsApp renvoie un HTTP 200 « Envoyé » mais ne délivre le message que si le client
+                                a initié une conversation dans les 24h précédentes, ou si vous utilisez des templates
+                                approuvés par Meta. Le SMS Inwi est délivré immédiatement sans ces restrictions.
+                            </div>
+                        </div>
+
                         <div class="col-12 col-lg-6 o_setting_box">
                             <div class="o_setting_right_pane">
                                 <label for="sms_api_url" string="URL endpoint API Inwi"/>
-                                <div class="text-muted">
-                                    URL fournie par Inwi Business pour l'envoi SMS (ex: https://api.inwi.ma/sms/send).
-                                </div>
+                                <div class="text-muted">URL fournie par Inwi Business pour l'envoi SMS.</div>
                                 <field name="sms_api_url" placeholder="https://api.inwi.ma/sms/send"/>
                             </div>
                         </div>
 
-                        <!-- Login -->
                         <div class="col-12 col-lg-6 o_setting_box">
                             <div class="o_setting_right_pane">
                                 <label for="sms_login" string="Login Inwi SMS"/>
-                                <div class="text-muted">Identifiant fourni par Inwi Business.</div>
                                 <field name="sms_login" placeholder="votre_login_inwi"/>
                             </div>
                         </div>
 
-                        <!-- Mot de passe -->
                         <div class="col-12 col-lg-6 o_setting_box">
                             <div class="o_setting_right_pane">
                                 <label for="sms_password" string="Mot de passe Inwi SMS"/>
-                                <field name="sms_password" password="True" placeholder="votre_mot_de_passe"/>
+                                <field name="sms_password" password="True"/>
                             </div>
                         </div>
 
-                        <!-- Sender ID -->
                         <div class="col-12 col-lg-6 o_setting_box">
                             <div class="o_setting_right_pane">
                                 <label for="sms_sender" string="Nom expéditeur (Sender ID)"/>
-                                <div class="text-muted">
-                                    Nom affiché chez le destinataire. Maximum 11 caractères alphanumériques (ex: DSM).
-                                </div>
+                                <div class="text-muted">Nom affiché chez le destinataire. Max 11 caractères.</div>
                                 <field name="sms_sender" placeholder="DSM"/>
                             </div>
                         </div>
 
-                        <!-- Bouton test SMS -->
                         <div class="col-12 o_setting_box">
                             <div class="o_setting_right_pane">
                                 <button name="action_test_sms"
@@ -144,21 +138,20 @@
 
                         <div class="col-12">
                             <div class="alert alert-info" role="alert">
-                                <strong>💡 Format de la requête envoyée à Inwi :</strong><br/>
-                                <code>POST [URL API]</code> avec Basic Auth (login:mot de passe)<br/>
-                                Corps JSON : <code>{"to": "+212XXXXXXXXX", "from": "DSM", "text": "..."}</code><br/>
-                                Si Inwi utilise un format différent, contactez le support pour adapter le connecteur.
+                                <strong>Format de la requête :</strong>
+                                <code>POST [URL API]</code> Basic Auth (login:mot de passe) —
+                                Corps JSON : <code>{"to": "+212XXXXXXXXX", "from": "DSM", "text": "..."}</code>
                             </div>
                         </div>
                     </div>
 
                     <!-- Événements déclencheurs -->
-                    <div class="row mt16" attrs="{'invisible': [('whatsapp_enabled', '=', False)]}">
+                    <div class="row mt16" invisible="not whatsapp_enabled">
                         <div class="col-12">
                             <div class="alert alert-info" role="alert">
                                 <strong>📋 Événements déclencheurs :</strong><br/>
                                 • <strong>Commande créée</strong> : dès qu'une commande est enregistrée<br/>
-                                • <strong>Commande confirmée</strong> : lors de la confirmation (action_confirm)<br/>
+                                • <strong>Commande confirmée</strong> : lors de la confirmation<br/>
                                 • <strong>Réception</strong> : bouton manuel sur la commande<br/>
                                 • <strong>Titre disponible</strong> : bouton par ligne de commande<br/>
                                 • <strong>Commande finalisée</strong> : quand l'état passe à "Terminé"
