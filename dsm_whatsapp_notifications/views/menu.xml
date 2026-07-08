@@ -1,12 +1,18 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
 
-    <!-- Journal WhatsApp dans le menu Ventes -->
     <menuitem
         id="menu_dsm_whatsapp_root"
         name="WhatsApp"
         parent="sale.sale_menu_root"
         sequence="99"/>
+
+    <menuitem
+        id="menu_dsm_whatsapp_settings"
+        name="Parametres"
+        parent="menu_dsm_whatsapp_root"
+        action="action_dsm_whatsapp_settings"
+        sequence="5"/>
 
     <menuitem
         id="menu_dsm_whatsapp_log"

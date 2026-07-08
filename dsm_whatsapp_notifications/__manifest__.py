@@ -4,7 +4,7 @@
     'summary': 'Envoi de messages WhatsApp aux clients lors des événements de commande',
     'category': 'Sales/CRM',
     'author': 'DSM Librairie',
-    'depends': ['sale', 'base_setup'],
+    'depends': ['sale'],
     'data': [
         'security/ir.model.access.csv',
         'views/dsm_whatsapp_log_views.xml',
