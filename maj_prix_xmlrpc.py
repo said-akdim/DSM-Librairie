@@ -34,14 +34,28 @@ def charger_csv() -> list[tuple[str, float]]:
         with open(chemin, encoding="utf-8-sig") as f:
             contenu = f.read()
 
-    entrees = []
-    for ligne in csv.reader(contenu.splitlines(), delimiter=";"):
-        if len(ligne) < 2 or not ligne[0].strip().isdigit():
-            continue  # en-tête ou ligne vide
-        entrees.append((ligne[0].strip(), float(ligne[1].strip().replace(",", "."))))
+    premiere = contenu.splitlines()[0] if contenu.splitlines() else ""
+    separateur = max((";", ",", "\t"), key=premiere.count)
+    entrees, vus, ignorees = [], set(), 0
+    for ligne in csv.reader(contenu.splitlines(), delimiter=separateur):
+        cellules = [c.strip() for c in ligne if c.strip()]
+        if len(cellules) < 2:
+            ignorees += bool(cellules)
+            continue
+        code, brut = cellules[0], cellules[-1]
+        try:
+            prix = float(brut.replace(" ", "").replace(",", "."))
+        except ValueError:
+            ignorees += 1  # en-tête ou ligne invalide
+            continue
+        if not code.isdigit() or prix <= 0 or code in vus:
+            ignorees += code not in vus
+            continue
+        vus.add(code)
+        entrees.append((code, prix))
     if not entrees:
-        sys.exit("Erreur : aucune ligne exploitable (format attendu : barcode;prix_vente)")
-    print(f"✔ Fichier lu : {len(entrees)} articles")
+        sys.exit("Erreur : aucune ligne exploitable (format attendu : code-barres;prix)")
+    print(f"✔ Fichier lu : {len(entrees)} articles uniques ({ignorees} ligne(s) invalide(s) ignorée(s))")
     return entrees
 
 
