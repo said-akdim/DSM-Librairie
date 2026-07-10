@@ -39,6 +39,9 @@
                 <!-- Étape 3 : terminé -->
                 <group string="Terminé" invisible="state != 'done'">
                     <field name="resultat" nolabel="1" readonly="1"/>
+                    <field name="rapport_file" widget="binary"
+                           filename="rapport_filename" string="📄 Rapport détaillé"/>
+                    <field name="rapport_filename" invisible="1"/>
                 </group>
 
                 <footer>

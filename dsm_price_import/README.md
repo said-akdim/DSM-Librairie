@@ -13,6 +13,9 @@ depuis un fichier CSV ou Excel, directement dans l'interface Odoo.
    - prix déjà à jour / prix à modifier
    - aperçu ancien prix → nouveau prix
 4. Cliquer **✔ Appliquer les changements** (avec confirmation)
+5. Télécharger le **rapport CSV** : un article par ligne avec
+   ancien prix, nouveau prix et statut — *Mis à jour*, *Déjà à jour*
+   ou *Introuvable dans Odoo* (s'ouvre dans Excel)
 
 Réservé au groupe **Responsable des ventes**.
 

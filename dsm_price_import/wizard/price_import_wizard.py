@@ -29,7 +29,12 @@ class PriceImportWizard(models.TransientModel):
     apercu = fields.Text('Aperçu des changements', readonly=True)
     resultat = fields.Text('Résultat', readonly=True)
 
-    payload = fields.Text(readonly=True)  # JSON [[template_id, nouveau_prix], ...]
+    rapport_file = fields.Binary('Rapport (CSV)', readonly=True, attachment=False)
+    rapport_filename = fields.Char(readonly=True)
+
+    # JSON [[code, nom, ancien_prix, nouveau_prix, statut, template_id], ...]
+    # statut : a_modifier | deja_a_jour | introuvable
+    payload = fields.Text(readonly=True)
 
     # ── Lecture du fichier ──────────────────────────────────────────────
 
@@ -113,39 +118,43 @@ class PriceImportWizard(models.TransientModel):
             for v in variantes:
                 modele_par_code.setdefault(v.barcode, v.product_tmpl_id)
 
-        changements, apercu, introuvables = [], [], []
-        nb_inchanges = 0
+        detail, apercu, introuvables = [], [], []
+        nb_a_modifier = nb_inchanges = 0
         for code, prix in entrees:
             modele = modele_par_code.get(code)
+            prix = round(prix, 2)
             if not modele:
                 introuvables.append(code)
-                continue
-            prix = round(prix, 2)
-            if abs(modele.list_price - prix) < 0.005:
+                detail.append([code, '', 0.0, prix, 'introuvable', 0])
+            elif abs(modele.list_price - prix) < 0.005:
                 nb_inchanges += 1
-                continue
-            changements.append((modele.id, prix))
-            if len(apercu) < 30:
-                apercu.append('%s | %s : %.2f → %.2f' % (
-                    code, modele.name[:50], modele.list_price, prix))
+                detail.append([code, modele.name, modele.list_price, prix,
+                               'deja_a_jour', modele.id])
+            else:
+                nb_a_modifier += 1
+                detail.append([code, modele.name, modele.list_price, prix,
+                               'a_modifier', modele.id])
+                if len(apercu) < 30:
+                    apercu.append('%s | %s : %.2f → %.2f' % (
+                        code, modele.name[:50], modele.list_price, prix))
 
         texte_introuvables = '\n'.join(introuvables[:100])
         if len(introuvables) > 100:
             texte_introuvables += _('\n… et %s autres') % (len(introuvables) - 100)
         texte_apercu = '\n'.join(apercu)
-        if len(changements) > len(apercu):
-            texte_apercu += _('\n… et %s autres changements') % (len(changements) - len(apercu))
+        if nb_a_modifier > len(apercu):
+            texte_apercu += _('\n… et %s autres changements') % (nb_a_modifier - len(apercu))
 
         self.write({
             'state': 'preview',
             'nb_lues': len(entrees),
             'nb_trouves': len(entrees) - len(introuvables),
-            'nb_a_modifier': len(changements),
+            'nb_a_modifier': nb_a_modifier,
             'nb_inchanges': nb_inchanges,
             'nb_introuvables': len(introuvables),
             'introuvables': texte_introuvables,
             'apercu': texte_apercu,
-            'payload': json.dumps(changements),
+            'payload': json.dumps(detail),
         })
         return self._reouvrir()
 
@@ -153,13 +162,13 @@ class PriceImportWizard(models.TransientModel):
 
     def action_appliquer(self):
         self.ensure_one()
-        changements = json.loads(self.payload or '[]')
-        if not changements:
-            raise UserError(_('Rien à appliquer.'))
-
+        detail = json.loads(self.payload or '[]')
         par_prix = {}
-        for template_id, prix in changements:
-            par_prix.setdefault(prix, []).append(template_id)
+        for code, nom, ancien, nouveau, statut, template_id in detail:
+            if statut == 'a_modifier':
+                par_prix.setdefault(nouveau, []).append(template_id)
+        if not par_prix:
+            raise UserError(_('Rien à appliquer : aucun prix à modifier.'))
 
         total = 0
         for prix, ids in par_prix.items():
@@ -170,13 +179,46 @@ class PriceImportWizard(models.TransientModel):
 
         self.write({
             'state': 'done',
-            'resultat': _('%s prix de vente mis à jour.') % total,
+            'resultat': _(
+                '%(maj)s prix de vente mis à jour.\n'
+                '%(inchanges)s articles déjà à jour (prix identique).\n'
+                '%(introuvables)s codes-barres introuvables dans Odoo.\n\n'
+                'Téléchargez le rapport détaillé ci-dessous.',
+                maj=total,
+                inchanges=self.nb_inchanges,
+                introuvables=self.nb_introuvables,
+            ),
+            'rapport_file': self._generer_rapport(detail),
+            'rapport_filename': 'rapport_prix_%s.csv' % fields.Date.today(),
         })
         return self._reouvrir()
 
+    @staticmethod
+    def _generer_rapport(detail):
+        """Rapport CSV : un article par ligne avec son statut final."""
+        libelles = {
+            'a_modifier': 'Mis à jour',
+            'deja_a_jour': 'Déjà à jour',
+            'introuvable': 'Introuvable dans Odoo',
+        }
+        tampon = io.StringIO()
+        rapport = csv.writer(tampon, delimiter=';')
+        rapport.writerow(['code_barres', 'article', 'ancien_prix',
+                          'nouveau_prix', 'statut'])
+        for code, nom, ancien, nouveau, statut, _template_id in detail:
+            rapport.writerow([
+                code, nom,
+                ('%.2f' % ancien).replace('.', ',') if statut != 'introuvable' else '',
+                ('%.2f' % nouveau).replace('.', ','),
+                libelles.get(statut, statut),
+            ])
+        # utf-8-sig pour que Excel affiche correctement les accents
+        return base64.b64encode(tampon.getvalue().encode('utf-8-sig'))
+
     def action_recommencer(self):
         self.ensure_one()
-        self.write({'state': 'draft', 'data_file': False, 'payload': False})
+        self.write({'state': 'draft', 'data_file': False, 'payload': False,
+                    'rapport_file': False})
         return self._reouvrir()
 
     def _reouvrir(self):
