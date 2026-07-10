@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_price_import_wizard_form" model="ir.ui.view">
+        <field name="name">dsm.price.import.wizard.form</field>
+        <field name="model">dsm.price.import.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Mise à jour des prix de vente">
+                <field name="state" invisible="1"/>
+
+                <!-- Étape 1 : choix du fichier -->
+                <group string="Fichier des prix" invisible="state != 'draft'">
+                    <field name="data_file" widget="binary" filename="data_filename"/>
+                    <field name="data_filename" invisible="1"/>
+                    <div colspan="2" style="color:#6c757d;font-size:12px">
+                        <p>Fichier <b>CSV</b> ou <b>Excel (.xlsx)</b> — une ligne par article :
+                        <b>code-barres (EAN13)</b> puis <b>prix de vente</b> en dernière colonne.
+                        Avec ou sans ligne d'en-tête ; virgule ou point pour les décimales.</p>
+                        <p>Exemple : <code>9782070368228;40,00</code></p>
+                    </div>
+                </group>
+
+                <!-- Étape 2 : rapport de vérification -->
+                <group invisible="state != 'preview'">
+                    <group string="Rapport d'analyse — rien n'est encore modifié">
+                        <field name="nb_lues"/>
+                        <field name="nb_trouves"/>
+                        <field name="nb_a_modifier" class="fw-bold"/>
+                        <field name="nb_inchanges"/>
+                        <field name="nb_introuvables"/>
+                    </group>
+                    <group string="Codes-barres introuvables" invisible="not introuvables">
+                        <field name="introuvables" nolabel="1" readonly="1"/>
+                    </group>
+                    <group string="Aperçu : code | article : ancien prix → nouveau prix" colspan="2">
+                        <field name="apercu" nolabel="1" readonly="1"/>
+                    </group>
+                </group>
+
+                <!-- Étape 3 : terminé -->
+                <group string="Terminé" invisible="state != 'done'">
+                    <field name="resultat" nolabel="1" readonly="1"/>
+                </group>
+
+                <footer>
+                    <button name="action_analyser" type="object" string="Analyser le fichier"
+                            class="btn-primary" invisible="state != 'draft'"/>
+                    <button name="action_appliquer" type="object" string="✔ Appliquer les changements"
+                            class="btn-primary" invisible="state != 'preview'"
+                            confirm="Les prix de vente vont être modifiés définitivement. Continuer ?"/>
+                    <button name="action_recommencer" type="object" string="Autre fichier"
+                            class="btn-secondary" invisible="state == 'draft'"/>
+                    <button string="Fermer" class="btn-secondary" special="cancel"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_price_import_wizard" model="ir.actions.act_window">
+        <field name="name">Mise à jour des prix de vente</field>
+        <field name="res_model">dsm.price.import.wizard</field>
+        <field name="view_mode">form</field>
+        <field name="target">new</field>
+    </record>
+
+    <menuitem id="menu_price_import"
+              name="Mise à jour des prix"
+              parent="sale.sale_menu_root"
+              action="action_price_import_wizard"
+              groups="sales_team.group_sale_manager"
+              sequence="80"/>
+</odoo>

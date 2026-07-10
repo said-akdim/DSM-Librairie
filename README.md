@@ -44,6 +44,13 @@ To learn more about developing your project with Expo, look at the following res
 
 ## Outils Odoo 18
 
+### Module Odoo : mise à jour des prix dans l'interface
+
+Le module **`dsm_price_import/`** ajoute un menu **Ventes → Mise à jour des prix**
+dans Odoo : chargement d'un fichier CSV/Excel, rapport d'analyse, puis
+application des prix de vente. Voir `dsm_price_import/README.md` pour
+l'installation.
+
 ### Mise à jour en masse des prix de vente (CSV / Excel)
 
 Le script `update_prix_vente_csv.py` met à jour le prix de vente (`list_price`)
