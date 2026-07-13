@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <record id="view_delivery_carrier_form_city" model="ir.ui.view">
+        <field name="name">delivery.carrier.form.city.fee</field>
+        <field name="model">delivery.carrier</field>
+        <field name="inherit_id" ref="delivery.view_delivery_carrier_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//notebook" position="inside">
+                <page string="Frais par ville" name="city_fees"
+                      invisible="delivery_type != 'based_on_city'">
+                    <group>
+                        <group>
+                            <field name="city_fallback_policy"/>
+                            <field name="city_default_price"
+                                   invisible="city_fallback_policy != 'default'"
+                                   required="delivery_type == 'based_on_city' and city_fallback_policy == 'default'"/>
+                        </group>
+                    </group>
+                    <field name="city_fee_ids">
+                        <list editable="bottom">
+                            <field name="sequence" widget="handle"/>
+                            <field name="city_name"/>
+                            <field name="city_aliases" optional="show"/>
+                            <field name="price"/>
+                            <field name="currency_id" column_invisible="1"/>
+                        </list>
+                    </field>
+                </page>
+            </xpath>
+        </field>
+    </record>
+
+</odoo>

@@ -1,0 +1,3 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_delivery_carrier_city_fee_user,delivery.carrier.city.fee user,model_delivery_carrier_city_fee,base.group_user,1,0,0,0
+access_delivery_carrier_city_fee_manager,delivery.carrier.city.fee manager,model_delivery_carrier_city_fee,sales_team.group_sale_manager,1,1,1,1

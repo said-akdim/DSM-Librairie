@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <record id="product_delivery_city_demo" model="product.product">
+        <field name="name">Frais de livraison (par ville)</field>
+        <field name="type">service</field>
+        <field name="categ_id" ref="delivery.product_category_deliveries"/>
+        <field name="sale_ok" eval="False"/>
+        <field name="purchase_ok" eval="False"/>
+        <field name="list_price">0.0</field>
+    </record>
+
+    <record id="delivery_carrier_city_demo" model="delivery.carrier">
+        <field name="name">Livraison par ville (démo)</field>
+        <field name="delivery_type">based_on_city</field>
+        <field name="product_id" ref="product_delivery_city_demo"/>
+        <field name="city_fallback_policy">default</field>
+        <field name="city_default_price">50.0</field>
+    </record>
+
+    <record id="city_fee_casablanca_demo" model="delivery.carrier.city.fee">
+        <field name="carrier_id" ref="delivery_carrier_city_demo"/>
+        <field name="city_name">Casablanca</field>
+        <field name="city_aliases">Casa</field>
+        <field name="price">20.0</field>
+    </record>
+
+    <record id="city_fee_rabat_demo" model="delivery.carrier.city.fee">
+        <field name="carrier_id" ref="delivery_carrier_city_demo"/>
+        <field name="city_name">Rabat</field>
+        <field name="price">25.0</field>
+    </record>
+
+    <record id="city_fee_marrakech_demo" model="delivery.carrier.city.fee">
+        <field name="carrier_id" ref="delivery_carrier_city_demo"/>
+        <field name="city_name">Marrakech</field>
+        <field name="city_aliases">Marrakesh</field>
+        <field name="price">35.0</field>
+    </record>
+
+</odoo>
