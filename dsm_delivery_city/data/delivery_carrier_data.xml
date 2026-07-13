@@ -20,9 +20,9 @@
              on applique le tarif « villes lointaines ». -->
         <field name="city_fallback_policy">default</field>
         <field name="city_default_price">60.0</field>
-        <!-- Livraison offerte dès 250 MAD d'achat (seuil ajustable). -->
+        <!-- Livraison offerte dès 500 MAD d'achat (seuil ajustable). -->
         <field name="free_over" eval="True"/>
-        <field name="amount">250.0</field>
+        <field name="amount">500.0</field>
         <field name="active" eval="False"/>
     </record>
 

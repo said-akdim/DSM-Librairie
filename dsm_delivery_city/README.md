@@ -27,7 +27,7 @@ la grille avec des **tarifs indicatifs par zone** —
   appliqué par défaut aux villes hors grille.
 
 La méthode est restreinte au Maroc, avec la **livraison offerte dès
-250 MAD d'achat** (champ natif *Gratuit si le montant de la commande
+500 MAD d'achat** (champ natif *Gratuit si le montant de la commande
 dépasse* — seuil ajustable ou désactivable), et livrée **archivée** pour
 ne pas apparaître au checkout avant validation des tarifs.
 
