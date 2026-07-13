@@ -1,6 +1,6 @@
 {
     'name': 'DSM - Frais de livraison par ville',
-    'version': '18.0.1.1.0',
+    'version': '18.0.2.0.0',
     'category': 'Inventory/Delivery',
     'summary': 'Calcul des frais de livraison selon la ville du client',
     'description': """
@@ -18,12 +18,17 @@ Ajoute un mode de tarification « Selon la ville » aux méthodes de livraison :
 Spécial Maroc : un bouton « Charger les villes du Maroc » pré-remplit la
 grille avec les principales villes marocaines et leurs variantes
 d'orthographe (français, anglais, arabe), et restreint la méthode au Maroc.
+
+Améliore aussi le mode natif « Selon des règles » : chaque règle de prix
+peut être limitée à certaines villes, en plus de la condition standard
+(poids, volume, prix, quantité).
     """,
     'author': 'DSM Librairie',
     'depends': ['delivery'],
     'data': [
         'security/ir.model.access.csv',
         'views/delivery_carrier_views.xml',
+        'views/delivery_price_rule_views.xml',
     ],
     'demo': [
         'demo/delivery_city_demo.xml',

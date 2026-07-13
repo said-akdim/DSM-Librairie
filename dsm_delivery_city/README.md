@@ -34,6 +34,26 @@ l'adresse de livraison du client.
    - **Appliquer un tarif par défaut** : le montant du champ
      *Tarif par défaut* est utilisé.
 
+## Villes dans les règles natives « Selon des règles »
+
+Le module améliore aussi le mode natif **Selon des règles** : chaque règle
+de prix (`delivery.price.rule`) gagne un champ **Villes**.
+
+- Vide, la règle s'applique partout (comportement natif inchangé).
+- Renseigné (villes séparées par des virgules, variantes acceptées), la
+  règle n'est utilisée que si la ville de livraison correspond.
+- Les règles sont évaluées dans l'ordre natif (séquence) ; la première qui
+  correspond gagne. On peut donc combiner ville **et** poids/montant :
+
+  | Séq. | Villes            | Condition      | Coût   |
+  |------|-------------------|----------------|--------|
+  | 1    | Casablanca, Casa  | quantité >= 0  | 20 MAD |
+  | 2    | Rabat, Salé       | quantité >= 0  | 25 MAD |
+  | 3    | *(vide = autres)* | quantité >= 0  | 40 MAD |
+
+- Marge, livraison gratuite et restrictions pays/région/code postal
+  natives restent appliquées par-dessus.
+
 ## Fonctionnement
 
 - Sur un devis, le bouton **Ajouter une livraison** calcule le tarif selon

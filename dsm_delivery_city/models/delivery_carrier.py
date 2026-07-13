@@ -6,6 +6,8 @@ Ajoute le type de tarification « Selon la ville » sur delivery.carrier.
 import unicodedata
 
 from odoo import api, fields, models, _
+from odoo.exceptions import UserError
+from odoo.tools.safe_eval import safe_eval
 
 
 # Principales villes du Maroc avec leurs variantes courantes
@@ -201,6 +203,31 @@ class DeliveryCarrier(models.Model):
             'error_message': False,
             'warning_message': False,
         }
+
+    # --- Extension du type natif « Selon des règles » (base_on_rule) :
+    # les règles de prix peuvent être limitées à certaines villes. ---
+
+    def _get_price_available(self, order):
+        city = order.partner_shipping_id.city or ''
+        carrier = self.with_context(dsm_shipping_city=city)
+        return super(DeliveryCarrier, carrier)._get_price_available(order)
+
+    def _get_price_from_picking(self, total, weight, volume, quantity, wv=0.):
+        city = self.env.context.get('dsm_shipping_city')
+        if city is None or not self.price_rule_ids.filtered('city_names'):
+            return super()._get_price_from_picking(
+                total, weight, volume, quantity, wv=wv)
+        price_dict = self._get_price_dict(total, weight, volume, quantity, wv=wv)
+        for line in self.price_rule_ids:
+            if not line._match_shipping_city(city):
+                continue
+            if safe_eval(line.variable + line.operator + str(line.max_value),
+                         price_dict):
+                return (line.list_base_price
+                        + line.list_price * price_dict[line.variable_factor])
+        raise UserError(_(
+            "Aucune règle de prix ne correspond à cette commande (ville : %s).",
+            city or _("non renseignée")))
 
     # Méthodes appelées par stock_delivery lors de la validation des
     # transferts, si ce module est installé.
