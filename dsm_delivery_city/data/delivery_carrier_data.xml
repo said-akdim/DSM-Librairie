@@ -16,13 +16,15 @@
         <field name="name">Livraison à domicile (Maroc)</field>
         <field name="delivery_type">based_on_city</field>
         <field name="product_id" ref="product_delivery_city_morocco"/>
+        <!-- Ville hors grille = souvent une petite localité éloignée :
+             on applique le tarif « villes lointaines ». -->
         <field name="city_fallback_policy">default</field>
-        <field name="city_default_price">45.0</field>
+        <field name="city_default_price">60.0</field>
         <field name="active" eval="False"/>
     </record>
 
-    <!-- Pré-remplit la grille avec les villes du Maroc (au tarif par
-         défaut) et restreint la méthode au Maroc. -->
+    <!-- Pré-remplit la grille avec les villes du Maroc (tarifs
+         indicatifs par zone) et restreint la méthode au Maroc. -->
     <function model="delivery.carrier" name="action_load_morocco_cities"
               eval="[[ref('delivery_carrier_morocco')]]"/>
 

@@ -15,9 +15,19 @@ l'adresse de livraison du client.
 
 À l'installation, le module crée une méthode **Livraison à domicile
 (Maroc)** déjà configurée : les 50 principales villes marocaines sont dans
-la grille (tarif initial : 45), la politique est « tarif par défaut »
-(45) et la méthode est restreinte au Maroc. Elle est livrée **archivée**
-pour ne pas apparaître au checkout avec des tarifs provisoires.
+la grille avec des **tarifs indicatifs par zone** —
+
+- **35 MAD** : grandes villes et axes bien desservis (Casablanca, Rabat,
+  Salé, Fès, Marrakech, Tanger, Meknès, Agadir, Kénitra, Tétouan,
+  Mohammedia, El Jadida…) ;
+- **45 MAD** : villes moyennes (Oujda, Safi, Béni Mellal, Nador, Taza,
+  Settat, Essaouira, Larache…) ;
+- **60 MAD** : villes lointaines (Laâyoune, Dakhla, Guelmim, Tan-Tan,
+  Tiznit, Errachidia, Ouarzazate, Midelt, Al Hoceïma) — tarif aussi
+  appliqué par défaut aux villes hors grille.
+
+La méthode est restreinte au Maroc et livrée **archivée** pour ne pas
+apparaître au checkout avant validation des tarifs.
 
 Pour la mettre en service :
 

@@ -10,60 +10,66 @@ from odoo.exceptions import UserError
 from odoo.tools.safe_eval import safe_eval
 
 
-# Principales villes du Maroc avec leurs variantes courantes
-# (orthographes française / anglaise / arabe), utilisées par le bouton
+# Tarifs indicatifs par zone (en MAD), appliqués par le bouton
+# « Charger les villes du Maroc ». À ajuster ensuite dans la grille.
+PRICE_MAJOR = 35.0    # grandes villes et axes bien desservis
+PRICE_STANDARD = 45.0  # villes moyennes
+PRICE_REMOTE = 60.0   # villes lointaines (sud, Sahara, montagne, oriental)
+
+# Principales villes du Maroc : (nom, variantes françaises / anglaises /
+# arabes, tarif indicatif), utilisées par le bouton
 # « Charger les villes du Maroc ».
 MOROCCO_CITIES = [
-    ('Casablanca', 'Casa, Dar el Beida, الدار البيضاء'),
-    ('Rabat', 'الرباط'),
-    ('Salé', 'Sale, سلا'),
-    ('Témara', 'Temara, تمارة'),
-    ('Skhirat', 'Skhirate, الصخيرات'),
-    ('Fès', 'Fes, Fez, فاس'),
-    ('Marrakech', 'Marrakesh, مراكش'),
-    ('Tanger', 'Tangier, Tanja, طنجة'),
-    ('Meknès', 'Meknes, مكناس'),
-    ('Agadir', 'أكادير, أغادير'),
-    ('Aït Melloul', 'Ait Melloul, أيت ملول'),
-    ('Inezgane', 'إنزكان'),
-    ('Oujda', 'وجدة'),
-    ('Kénitra', 'Kenitra, القنيطرة'),
-    ('Tétouan', 'Tetouan, Tetuan, تطوان'),
-    ('Safi', 'Asfi, آسفي'),
-    ('Mohammedia', 'المحمدية'),
-    ('Khouribga', 'خريبكة'),
-    ('El Jadida', 'Eljadida, Mazagan, الجديدة'),
-    ('Béni Mellal', 'Beni Mellal, بني ملال'),
-    ('Nador', 'الناظور'),
-    ('Taza', 'تازة'),
-    ('Settat', 'سطات'),
-    ('Berrechid', 'برشيد'),
-    ('Bouskoura', 'بوسكورة'),
-    ('Dar Bouazza', 'دار بوعزة'),
-    ('Khémisset', 'Khemisset, الخميسات'),
-    ('Ksar El Kébir', 'Ksar El Kebir, القصر الكبير'),
-    ('Larache', 'العرائش'),
-    ('Guelmim', 'Guelmime, كلميم'),
-    ('Khénifra', 'Khenifra, خنيفرة'),
-    ('Berkane', 'بركان'),
-    ('Taourirt', 'تاوريرت'),
-    ('Errachidia', 'الرشيدية'),
-    ('Ouarzazate', 'ورزازات'),
-    ('Essaouira', 'Mogador, الصويرة'),
-    ('Al Hoceïma', 'Al Hoceima, الحسيمة'),
-    ('Fkih Ben Salah', 'الفقيه بن صالح'),
-    ('Tiznit', 'تيزنيت'),
-    ('Tan-Tan', 'Tantan, طانطان'),
-    ('Sidi Kacem', 'سيدي قاسم'),
-    ('Sidi Slimane', 'سيدي سليمان'),
-    ('Youssoufia', 'اليوسفية'),
-    ('Sefrou', 'صفرو'),
-    ('Midelt', 'ميدلت'),
-    ('Azrou', 'أزرو'),
-    ('Ifrane', 'إفران'),
-    ('Chefchaouen', 'Chaouen, Chefchaouene, شفشاون'),
-    ('Laâyoune', 'Laayoune, El Aaiun, العيون'),
-    ('Dakhla', 'الداخلة'),
+    ('Casablanca', 'Casa, Dar el Beida, الدار البيضاء', PRICE_MAJOR),
+    ('Rabat', 'الرباط', PRICE_MAJOR),
+    ('Salé', 'Sale, سلا', PRICE_MAJOR),
+    ('Témara', 'Temara, تمارة', PRICE_MAJOR),
+    ('Skhirat', 'Skhirate, الصخيرات', PRICE_MAJOR),
+    ('Fès', 'Fes, Fez, فاس', PRICE_MAJOR),
+    ('Marrakech', 'Marrakesh, مراكش', PRICE_MAJOR),
+    ('Tanger', 'Tangier, Tanja, طنجة', PRICE_MAJOR),
+    ('Meknès', 'Meknes, مكناس', PRICE_MAJOR),
+    ('Agadir', 'أكادير, أغادير', PRICE_MAJOR),
+    ('Aït Melloul', 'Ait Melloul, أيت ملول', PRICE_MAJOR),
+    ('Inezgane', 'إنزكان', PRICE_MAJOR),
+    ('Oujda', 'وجدة', PRICE_STANDARD),
+    ('Kénitra', 'Kenitra, القنيطرة', PRICE_MAJOR),
+    ('Tétouan', 'Tetouan, Tetuan, تطوان', PRICE_MAJOR),
+    ('Safi', 'Asfi, آسفي', PRICE_STANDARD),
+    ('Mohammedia', 'المحمدية', PRICE_MAJOR),
+    ('Khouribga', 'خريبكة', PRICE_STANDARD),
+    ('El Jadida', 'Eljadida, Mazagan, الجديدة', PRICE_MAJOR),
+    ('Béni Mellal', 'Beni Mellal, بني ملال', PRICE_STANDARD),
+    ('Nador', 'الناظور', PRICE_STANDARD),
+    ('Taza', 'تازة', PRICE_STANDARD),
+    ('Settat', 'سطات', PRICE_STANDARD),
+    ('Berrechid', 'برشيد', PRICE_MAJOR),
+    ('Bouskoura', 'بوسكورة', PRICE_MAJOR),
+    ('Dar Bouazza', 'دار بوعزة', PRICE_MAJOR),
+    ('Khémisset', 'Khemisset, الخميسات', PRICE_STANDARD),
+    ('Ksar El Kébir', 'Ksar El Kebir, القصر الكبير', PRICE_STANDARD),
+    ('Larache', 'العرائش', PRICE_STANDARD),
+    ('Guelmim', 'Guelmime, كلميم', PRICE_REMOTE),
+    ('Khénifra', 'Khenifra, خنيفرة', PRICE_STANDARD),
+    ('Berkane', 'بركان', PRICE_STANDARD),
+    ('Taourirt', 'تاوريرت', PRICE_STANDARD),
+    ('Errachidia', 'الرشيدية', PRICE_REMOTE),
+    ('Ouarzazate', 'ورزازات', PRICE_REMOTE),
+    ('Essaouira', 'Mogador, الصويرة', PRICE_STANDARD),
+    ('Al Hoceïma', 'Al Hoceima, الحسيمة', PRICE_REMOTE),
+    ('Fkih Ben Salah', 'الفقيه بن صالح', PRICE_STANDARD),
+    ('Tiznit', 'تيزنيت', PRICE_REMOTE),
+    ('Tan-Tan', 'Tantan, طانطان', PRICE_REMOTE),
+    ('Sidi Kacem', 'سيدي قاسم', PRICE_STANDARD),
+    ('Sidi Slimane', 'سيدي سليمان', PRICE_STANDARD),
+    ('Youssoufia', 'اليوسفية', PRICE_STANDARD),
+    ('Sefrou', 'صفرو', PRICE_STANDARD),
+    ('Midelt', 'ميدلت', PRICE_REMOTE),
+    ('Azrou', 'أزرو', PRICE_STANDARD),
+    ('Ifrane', 'إفران', PRICE_STANDARD),
+    ('Chefchaouen', 'Chaouen, Chefchaouene, شفشاون', PRICE_STANDARD),
+    ('Laâyoune', 'Laayoune, El Aaiun, العيون', PRICE_REMOTE),
+    ('Dakhla', 'الداخلة', PRICE_REMOTE),
 ]
 
 
@@ -110,18 +116,18 @@ class DeliveryCarrier(models.Model):
         """Pré-remplit la grille avec les principales villes du Maroc.
 
         Les villes déjà présentes (nom ou alias) sont ignorées ; les
-        nouvelles lignes sont créées au tarif par défaut (ou 0, à
-        renseigner ensuite). La méthode est également restreinte au
-        Maroc si aucune restriction de pays n'inclut déjà le Maroc.
+        nouvelles lignes sont créées avec un tarif indicatif par zone
+        (villes principales, moyennes, lointaines — à ajuster ensuite).
+        La méthode est également restreinte au Maroc si aucune
+        restriction de pays n'inclut déjà le Maroc.
         """
         self.ensure_one()
         existing = set()
         for fee in self.city_fee_ids:
             existing |= fee._get_normalized_names()
-        price = self.city_default_price if self.city_fallback_policy == 'default' else 0.0
         sequence = max(self.city_fee_ids.mapped('sequence'), default=0)
         vals_list = []
-        for name, aliases in MOROCCO_CITIES:
+        for name, aliases, price in MOROCCO_CITIES:
             if _normalize_city(name) in existing:
                 continue
             sequence += 10
@@ -137,8 +143,9 @@ class DeliveryCarrier(models.Model):
         if morocco and morocco not in self.country_ids:
             self.country_ids = [fields.Command.link(morocco.id)]
         if created:
-            message = _("%s villes marocaines ajoutées à la grille. "
-                        "Renseignez maintenant les tarifs.", len(created))
+            message = _("%s villes marocaines ajoutées à la grille avec des "
+                        "tarifs indicatifs par zone. Ajustez-les si besoin.",
+                        len(created))
         else:
             message = _("Toutes les villes du Maroc sont déjà dans la grille.")
         return {
