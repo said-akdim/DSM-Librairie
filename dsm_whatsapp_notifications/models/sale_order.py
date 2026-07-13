@@ -42,6 +42,27 @@ MSG_TEMPLATES = {
         "À très bientôt chez DSM Librairie 📚\n"
         "— DSM Librairie"
     ),
+    'titres_reserves': (
+        "Bonjour {name},\n\n"
+        "📚 Les articles suivants de votre commande *{ref}* ont été réservés pour vous :\n"
+        "{titres}\n\n"
+        "Passez les récupérer en librairie pendant nos horaires d'ouverture.\n"
+        "— DSM Librairie"
+    ),
+    'titres_recus': (
+        "Bonjour {name},\n\n"
+        "📦 Les articles suivants de votre commande *{ref}* sont arrivés en librairie :\n"
+        "{titres}\n\n"
+        "Vous pouvez venir les récupérer pendant nos horaires d'ouverture.\n"
+        "— DSM Librairie"
+    ),
+    'commande_complete': (
+        "Bonjour {name},\n\n"
+        "🎉 Bonne nouvelle ! Votre commande *{ref}* est complète.\n"
+        "Tous vos articles sont disponibles en librairie.\n\n"
+        "Venez les récupérer pendant nos horaires d'ouverture.\n"
+        "— DSM Librairie"
+    ),
 }
 
 
@@ -177,7 +198,7 @@ class SaleOrder(models.Model):
             })
             return False
 
-    def _wa_notify(self, event, titre=None):
+    def _wa_notify(self, event, titre=None, titres=None):
         """Prépare le message et déclenche l'envoi selon le mode configuré."""
         self.ensure_one()
         cfg = self._wa_config()
@@ -197,6 +218,7 @@ class SaleOrder(models.Model):
             amount=f'{self.amount_total:.2f}',
             nb_articles=nb_articles,
             titre=titre or '',
+            titres=titres or '',
         )
 
         mode = cfg.get('mode', 'whatsapp')

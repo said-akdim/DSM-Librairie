@@ -20,6 +20,9 @@ class DsmWhatsappLog(models.Model):
         ('commande_reception', 'Articles reçus en librairie'),
         ('titre_disponible', 'Titre disponible'),
         ('commande_finalisee', 'Commande finalisée'),
+        ('titres_reserves', 'Titres réservés (picking)'),
+        ('titres_recus', 'Titres reçus (picking validé)'),
+        ('commande_complete', 'Commande complète'),
     ], string='Événement', readonly=True)
     sale_order_id = fields.Many2one('sale.order', string='Commande', readonly=True, ondelete='set null')
     date_envoi = fields.Datetime(string='Date d\'envoi', readonly=True, default=fields.Datetime.now)
