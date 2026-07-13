@@ -20,6 +20,27 @@
              on applique le tarif « villes lointaines ». -->
         <field name="city_fallback_policy">default</field>
         <field name="city_default_price">60.0</field>
+        <!-- Livraison offerte dès 250 MAD d'achat (seuil ajustable). -->
+        <field name="free_over" eval="True"/>
+        <field name="amount">250.0</field>
+        <field name="active" eval="False"/>
+    </record>
+
+    <record id="product_delivery_pickup" model="product.product">
+        <field name="name">Retrait en librairie</field>
+        <field name="type">service</field>
+        <field name="categ_id" ref="delivery.product_category_deliveries"/>
+        <field name="sale_ok" eval="False"/>
+        <field name="purchase_ok" eval="False"/>
+        <field name="list_price">0.0</field>
+    </record>
+
+    <!-- Click & collect : retrait gratuit en boutique. Livré archivé,
+         à activer/publier comme la méthode par ville. -->
+    <record id="delivery_carrier_pickup" model="delivery.carrier">
+        <field name="name">Retrait en librairie (gratuit)</field>
+        <field name="delivery_type">fixed</field>
+        <field name="product_id" ref="product_delivery_pickup"/>
         <field name="active" eval="False"/>
     </record>
 

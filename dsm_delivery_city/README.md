@@ -26,8 +26,14 @@ la grille avec des **tarifs indicatifs par zone** —
   Tiznit, Errachidia, Ouarzazate, Midelt, Al Hoceïma) — tarif aussi
   appliqué par défaut aux villes hors grille.
 
-La méthode est restreinte au Maroc et livrée **archivée** pour ne pas
-apparaître au checkout avant validation des tarifs.
+La méthode est restreinte au Maroc, avec la **livraison offerte dès
+250 MAD d'achat** (champ natif *Gratuit si le montant de la commande
+dépasse* — seuil ajustable ou désactivable), et livrée **archivée** pour
+ne pas apparaître au checkout avant validation des tarifs.
+
+Le module crée aussi une méthode **Retrait en librairie (gratuit)**
+(click & collect, archivée elle aussi) : le client commande en ligne et
+récupère ses livres en boutique sans frais.
 
 Pour la mettre en service :
 
@@ -91,6 +97,17 @@ de prix (`delivery.price.rule`) gagne un champ **Villes**.
   (`El-Jadida` = `el jadida` = `EL JADIDA`).
 - Les champs standards restent utilisables : marge, **livraison gratuite à
   partir d'un montant**, disponibilité par pays/région/code postal.
+
+## Tests automatiques
+
+Le module embarque des tests (`tests/test_delivery_city.py`) couvrant la
+normalisation des noms de villes, la tarification par ville et alias
+(y compris en arabe), les politiques « ville introuvable », le chargement
+des villes du Maroc (idempotent) et les règles natives limitées par ville.
+
+```bash
+odoo -d <base> --test-tags /dsm_delivery_city --stop-after-init
+```
 
 ## Données de démonstration
 

@@ -1,6 +1,6 @@
 {
     'name': 'DSM - Frais de livraison par ville',
-    'version': '18.0.2.2.0',
+    'version': '18.0.3.0.0',
     'category': 'Inventory/Delivery',
     'summary': 'Calcul des frais de livraison selon la ville du client',
     'description': """
