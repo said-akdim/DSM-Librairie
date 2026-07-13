@@ -98,6 +98,22 @@ de prix (`delivery.price.rule`) gagne un champ **Villes**.
 - Les champs standards restent utilisables : marge, **livraison gratuite à
   partir d'un montant**, disponibilité par pays/région/code postal.
 
+## Affichage au checkout (normes e-commerce)
+
+Chaque méthode arrive avec des textes prêts pour la vente en ligne :
+
+- **Sous l'option de livraison au checkout** (champ *Description pour les
+  devis en ligne*, lié à la description de vente du produit de
+  livraison) : délais estimés (24-48 h grandes villes, 2-5 jours villes
+  éloignées) et rappel « offerte dès 500 DH » ;
+- **Sur le devis et l'e-mail de confirmation de commande** (champ natif
+  *Description du transporteur*) : les mêmes informations pour le client.
+
+Le badge de prix, le passage automatique à « Gratuit » au-delà de
+500 DH et le recalcul selon la ville saisie sont gérés par le checkout
+standard d'Odoo. Pensez à **publier** les méthodes sur le site web
+(bouton « Publié » sur la fiche) après les avoir désarchivées.
+
 ## Tests automatiques
 
 Le module embarque des tests (`tests/test_delivery_city.py`) couvrant la

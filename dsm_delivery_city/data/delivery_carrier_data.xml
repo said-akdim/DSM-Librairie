@@ -8,6 +8,9 @@
         <field name="sale_ok" eval="False"/>
         <field name="purchase_ok" eval="False"/>
         <field name="list_price">0.0</field>
+        <!-- Affiché sous la méthode au checkout eCommerce
+             (via le champ lié website_description). -->
+        <field name="description_sale">Livraison à domicile partout au Maroc : 24 à 48 h pour les grandes villes, 2 à 5 jours pour les villes éloignées. Offerte dès 500 DH d'achat.</field>
     </record>
 
     <!-- Méthode livrée inactive : ajuster les tarifs par ville puis
@@ -23,6 +26,8 @@
         <!-- Livraison offerte dès 500 MAD d'achat (seuil ajustable). -->
         <field name="free_over" eval="True"/>
         <field name="amount">500.0</field>
+        <!-- Repris sur le devis et l'e-mail de confirmation. -->
+        <field name="carrier_description">Livraison à domicile partout au Maroc. Délai estimé : 24 à 48 h pour les grandes villes, 2 à 5 jours pour les villes éloignées. Livraison offerte dès 500 DH d'achat.</field>
         <field name="active" eval="False"/>
     </record>
 
@@ -33,6 +38,7 @@
         <field name="sale_ok" eval="False"/>
         <field name="purchase_ok" eval="False"/>
         <field name="list_price">0.0</field>
+        <field name="description_sale">Retrait gratuit à la librairie. Votre commande est prête sous 24 h — nous vous prévenons dès qu'elle est disponible.</field>
     </record>
 
     <!-- Click & collect : retrait gratuit en boutique. Livré archivé,
@@ -41,6 +47,7 @@
         <field name="name">Retrait en librairie (gratuit)</field>
         <field name="delivery_type">fixed</field>
         <field name="product_id" ref="product_delivery_pickup"/>
+        <field name="carrier_description">Retrait gratuit à la librairie. Votre commande est prête sous 24 h — nous vous prévenons dès qu'elle est disponible.</field>
         <field name="active" eval="False"/>
     </record>
 
