@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo noupdate="1">
+
+    <record id="product_delivery_city_morocco" model="product.product">
+        <field name="name">Frais de livraison</field>
+        <field name="type">service</field>
+        <field name="categ_id" ref="delivery.product_category_deliveries"/>
+        <field name="sale_ok" eval="False"/>
+        <field name="purchase_ok" eval="False"/>
+        <field name="list_price">0.0</field>
+    </record>
+
+    <!-- Méthode livrée inactive : ajuster les tarifs par ville puis
+         l'activer (et la publier sur le site web le cas échéant). -->
+    <record id="delivery_carrier_morocco" model="delivery.carrier">
+        <field name="name">Livraison à domicile (Maroc)</field>
+        <field name="delivery_type">based_on_city</field>
+        <field name="product_id" ref="product_delivery_city_morocco"/>
+        <field name="city_fallback_policy">default</field>
+        <field name="city_default_price">45.0</field>
+        <field name="active" eval="False"/>
+    </record>
+
+    <!-- Pré-remplit la grille avec les villes du Maroc (au tarif par
+         défaut) et restreint la méthode au Maroc. -->
+    <function model="delivery.carrier" name="action_load_morocco_cities"
+              eval="[[ref('delivery_carrier_morocco')]]"/>
+
+</odoo>

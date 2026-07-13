@@ -11,7 +11,24 @@ l'adresse de livraison du client.
    **DSM - Frais de livraison par ville**.
 3. Prérequis : le module standard **Frais de livraison** (`delivery`).
 
-## Configuration
+## Prêt à l'emploi : méthode « Livraison à domicile (Maroc) »
+
+À l'installation, le module crée une méthode **Livraison à domicile
+(Maroc)** déjà configurée : les 50 principales villes marocaines sont dans
+la grille (tarif initial : 45), la politique est « tarif par défaut »
+(45) et la méthode est restreinte au Maroc. Elle est livrée **archivée**
+pour ne pas apparaître au checkout avec des tarifs provisoires.
+
+Pour la mettre en service :
+
+1. **Inventaire → Configuration → Méthodes de livraison**, filtre
+   *Archivé* → ouvrir **Livraison à domicile (Maroc)**.
+2. Ajuster les tarifs par ville dans l'onglet **Frais par ville**
+   (et supprimer les villes non desservies si souhaité).
+3. **Désarchiver** la méthode, et la **publier** sur le site web pour le
+   checkout eCommerce.
+
+## Configuration manuelle
 
 1. Aller dans **Inventaire → Configuration → Méthodes de livraison**
    (ou **Ventes → Configuration → Méthodes de livraison**).

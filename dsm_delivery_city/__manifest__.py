@@ -1,6 +1,6 @@
 {
     'name': 'DSM - Frais de livraison par ville',
-    'version': '18.0.2.0.0',
+    'version': '18.0.2.1.0',
     'category': 'Inventory/Delivery',
     'summary': 'Calcul des frais de livraison selon la ville du client',
     'description': """
@@ -27,6 +27,7 @@ peut être limitée à certaines villes, en plus de la condition standard
     'depends': ['delivery'],
     'data': [
         'security/ir.model.access.csv',
+        'data/delivery_carrier_data.xml',
         'views/delivery_carrier_views.xml',
         'views/delivery_price_rule_views.xml',
     ],
