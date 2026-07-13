@@ -1,6 +1,6 @@
 {
     'name': 'DSM - Frais de livraison par ville',
-    'version': '18.0.1.0.0',
+    'version': '18.0.1.1.0',
     'category': 'Inventory/Delivery',
     'summary': 'Calcul des frais de livraison selon la ville du client',
     'description': """
@@ -14,6 +14,10 @@ Ajoute un mode de tarification « Selon la ville » aux méthodes de livraison :
    défaut, au choix
 5. La livraison gratuite au-dessus d'un montant (champ standard Odoo)
    reste utilisable
+
+Spécial Maroc : un bouton « Charger les villes du Maroc » pré-remplit la
+grille avec les principales villes marocaines et leurs variantes
+d'orthographe (français, anglais, arabe), et restreint la méthode au Maroc.
     """,
     'author': 'DSM Librairie',
     'depends': ['delivery'],

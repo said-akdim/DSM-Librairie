@@ -17,9 +17,16 @@ l'adresse de livraison du client.
    (ou **Ventes → Configuration → Méthodes de livraison**).
 2. Créer une méthode de livraison et choisir le fournisseur
    **Selon la ville**.
-3. Dans l'onglet **Frais par ville**, ajouter une ligne par ville avec son
-   tarif. Le champ *Autres orthographes* accepte des variantes séparées par
-   des virgules (ex. `Casa` pour Casablanca).
+3. Dans l'onglet **Frais par ville**, cliquer sur
+   **Charger les villes du Maroc** pour pré-remplir la grille avec une
+   cinquantaine de villes marocaines (Casablanca, Rabat, Salé, Fès,
+   Marrakech, Tanger, Agadir, Oujda, Laâyoune, Dakhla…), chacune avec ses
+   variantes d'orthographe en français, anglais et arabe (ex. `Casa`,
+   `الدار البيضاء` pour Casablanca). Il ne reste qu'à saisir les tarifs.
+   Le bouton restreint aussi la méthode au Maroc et ignore les villes déjà
+   présentes (on peut donc le relancer sans créer de doublons).
+   On peut aussi ajouter les lignes à la main : le champ
+   *Autres orthographes* accepte des variantes séparées par des virgules.
 4. Choisir le comportement quand la ville du client n'est pas dans la
    grille :
    - **Refuser la livraison** : la méthode n'est pas proposée / affiche une

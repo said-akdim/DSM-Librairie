@@ -8,6 +8,63 @@ import unicodedata
 from odoo import api, fields, models, _
 
 
+# Principales villes du Maroc avec leurs variantes courantes
+# (orthographes française / anglaise / arabe), utilisées par le bouton
+# « Charger les villes du Maroc ».
+MOROCCO_CITIES = [
+    ('Casablanca', 'Casa, Dar el Beida, الدار البيضاء'),
+    ('Rabat', 'الرباط'),
+    ('Salé', 'Sale, سلا'),
+    ('Témara', 'Temara, تمارة'),
+    ('Skhirat', 'Skhirate, الصخيرات'),
+    ('Fès', 'Fes, Fez, فاس'),
+    ('Marrakech', 'Marrakesh, مراكش'),
+    ('Tanger', 'Tangier, Tanja, طنجة'),
+    ('Meknès', 'Meknes, مكناس'),
+    ('Agadir', 'أكادير, أغادير'),
+    ('Aït Melloul', 'Ait Melloul, أيت ملول'),
+    ('Inezgane', 'إنزكان'),
+    ('Oujda', 'وجدة'),
+    ('Kénitra', 'Kenitra, القنيطرة'),
+    ('Tétouan', 'Tetouan, Tetuan, تطوان'),
+    ('Safi', 'Asfi, آسفي'),
+    ('Mohammedia', 'المحمدية'),
+    ('Khouribga', 'خريبكة'),
+    ('El Jadida', 'Eljadida, Mazagan, الجديدة'),
+    ('Béni Mellal', 'Beni Mellal, بني ملال'),
+    ('Nador', 'الناظور'),
+    ('Taza', 'تازة'),
+    ('Settat', 'سطات'),
+    ('Berrechid', 'برشيد'),
+    ('Bouskoura', 'بوسكورة'),
+    ('Dar Bouazza', 'دار بوعزة'),
+    ('Khémisset', 'Khemisset, الخميسات'),
+    ('Ksar El Kébir', 'Ksar El Kebir, القصر الكبير'),
+    ('Larache', 'العرائش'),
+    ('Guelmim', 'Guelmime, كلميم'),
+    ('Khénifra', 'Khenifra, خنيفرة'),
+    ('Berkane', 'بركان'),
+    ('Taourirt', 'تاوريرت'),
+    ('Errachidia', 'الرشيدية'),
+    ('Ouarzazate', 'ورزازات'),
+    ('Essaouira', 'Mogador, الصويرة'),
+    ('Al Hoceïma', 'Al Hoceima, الحسيمة'),
+    ('Fkih Ben Salah', 'الفقيه بن صالح'),
+    ('Tiznit', 'تيزنيت'),
+    ('Tan-Tan', 'Tantan, طانطان'),
+    ('Sidi Kacem', 'سيدي قاسم'),
+    ('Sidi Slimane', 'سيدي سليمان'),
+    ('Youssoufia', 'اليوسفية'),
+    ('Sefrou', 'صفرو'),
+    ('Midelt', 'ميدلت'),
+    ('Azrou', 'أزرو'),
+    ('Ifrane', 'إفران'),
+    ('Chefchaouen', 'Chaouen, Chefchaouene, شفشاون'),
+    ('Laâyoune', 'Laayoune, El Aaiun, العيون'),
+    ('Dakhla', 'الداخلة'),
+]
+
+
 def _normalize_city(name):
     """Normalise un nom de ville pour la comparaison :
     minuscules, sans accents, tirets → espaces, espaces multiples réduits.
@@ -46,6 +103,47 @@ class DeliveryCarrier(models.Model):
         help="Frais appliqués quand la ville du client n'est pas dans la grille "
              "(si la politique est « Appliquer un tarif par défaut »).",
     )
+
+    def action_load_morocco_cities(self):
+        """Pré-remplit la grille avec les principales villes du Maroc.
+
+        Les villes déjà présentes (nom ou alias) sont ignorées ; les
+        nouvelles lignes sont créées au tarif par défaut (ou 0, à
+        renseigner ensuite). La méthode est également restreinte au
+        Maroc si aucune restriction de pays n'inclut déjà le Maroc.
+        """
+        self.ensure_one()
+        existing = set()
+        for fee in self.city_fee_ids:
+            existing |= fee._get_normalized_names()
+        price = self.city_default_price if self.city_fallback_policy == 'default' else 0.0
+        sequence = max(self.city_fee_ids.mapped('sequence'), default=0)
+        vals_list = []
+        for name, aliases in MOROCCO_CITIES:
+            if _normalize_city(name) in existing:
+                continue
+            sequence += 10
+            vals_list.append({
+                'carrier_id': self.id,
+                'sequence': sequence,
+                'city_name': name,
+                'city_aliases': aliases,
+                'price': price,
+            })
+        created = self.env['delivery.carrier.city.fee'].create(vals_list)
+        morocco = self.env.ref('base.ma', raise_if_not_found=False)
+        if morocco and morocco not in self.country_ids:
+            self.country_ids = [fields.Command.link(morocco.id)]
+        if created:
+            message = _("%s villes marocaines ajoutées à la grille. "
+                        "Renseignez maintenant les tarifs.", len(created))
+        else:
+            message = _("Toutes les villes du Maroc sont déjà dans la grille.")
+        return {
+            'type': 'ir.actions.client',
+            'tag': 'display_notification',
+            'params': {'type': 'success', 'message': message},
+        }
 
     def _get_city_fee(self, partner):
         """Retourne la ligne de frais correspondant à la ville du partenaire,

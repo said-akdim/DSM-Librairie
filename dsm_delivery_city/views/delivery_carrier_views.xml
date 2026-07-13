@@ -9,6 +9,12 @@
             <xpath expr="//notebook" position="inside">
                 <page string="Frais par ville" name="city_fees"
                       invisible="delivery_type != 'based_on_city'">
+                    <div class="mb-3">
+                        <button name="action_load_morocco_cities" type="object"
+                                string="Charger les villes du Maroc"
+                                class="btn btn-secondary" icon="fa-map-marker"
+                                help="Ajoute les principales villes marocaines à la grille avec leurs variantes d'orthographe (français, anglais, arabe). Les tarifs restent à renseigner."/>
+                    </div>
                     <group>
                         <group>
                             <field name="city_fallback_policy"/>
