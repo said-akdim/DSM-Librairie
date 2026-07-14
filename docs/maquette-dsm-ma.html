@@ -1,0 +1,760 @@
+<title>DSM Librairie — Proposition de refonte dsm.ma</title>
+<style>
+  :root {
+    --nuit: #071538;
+    --encre: #0A2463;
+    --encre-2: #16409C;
+    --safran: #F5A623;
+    --safran-fonce: #D88A0A;
+    --sable: #FFD080;
+    --papier: #F6F8FC;
+    --blanc: #FFFFFF;
+    --texte: #1B2A4A;
+    --texte-2: #5A6B8C;
+    --ligne: #DEE6F4;
+    --serif: Georgia, "Iowan Old Style", "Times New Roman", serif;
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  }
+
+  /* La maquette assume un monde visuel unique (papier clair + encre),
+     y compris pour les visiteurs en thème sombre. */
+  html, body { background: var(--papier); }
+
+  * { box-sizing: border-box; margin: 0; }
+
+  body {
+    font-family: var(--sans);
+    color: var(--texte);
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  a { color: inherit; text-decoration: none; }
+  a:focus-visible, button:focus-visible {
+    outline: 3px solid var(--safran);
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+
+  .wrap { max-width: 1120px; margin: 0 auto; padding: 0 24px; }
+
+  /* ── Ruban maquette ─────────────────────── */
+  .ruban {
+    background: var(--safran);
+    color: #2A1B00;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    text-align: center;
+    padding: 7px 16px;
+  }
+
+  /* ── Barre info ─────────────────────────── */
+  .topbar {
+    background: var(--nuit);
+    color: rgba(255,255,255,.75);
+    font-size: 12.5px;
+  }
+  .topbar .wrap {
+    display: flex; justify-content: space-between; gap: 16px;
+    padding-top: 7px; padding-bottom: 7px; flex-wrap: wrap;
+  }
+  .topbar b { color: var(--sable); font-weight: 600; }
+
+  /* ── Header ─────────────────────────────── */
+  header.site {
+    background: var(--blanc);
+    border-bottom: 1px solid var(--ligne);
+  }
+  .header-ligne {
+    display: flex; align-items: center; gap: 28px;
+    padding: 18px 0;
+  }
+  .logo { display: flex; align-items: baseline; gap: 10px; white-space: nowrap; }
+  .logo .sigle {
+    font-family: var(--serif);
+    font-size: 30px; font-weight: 700; letter-spacing: .14em;
+    color: var(--encre);
+  }
+  .logo .point { color: var(--safran); }
+  .logo .sous {
+    font-size: 10.5px; letter-spacing: .32em; text-transform: uppercase;
+    color: var(--texte-2);
+  }
+  .recherche {
+    flex: 1; display: flex; align-items: center;
+    background: var(--papier);
+    border: 1.5px solid var(--ligne);
+    border-radius: 12px;
+    padding: 0 4px 0 16px; height: 46px;
+    color: var(--texte-2); font-size: 14.5px;
+  }
+  .recherche svg { flex: none; margin-right: 10px; }
+  .recherche .btn-cherche {
+    margin-left: auto; flex: none;
+    background: var(--encre); color: #fff;
+    border: 0; border-radius: 9px;
+    font-size: 13.5px; font-weight: 600;
+    padding: 9px 18px; cursor: pointer;
+  }
+  .header-actions { display: flex; gap: 22px; }
+  .header-actions a {
+    display: flex; flex-direction: column; align-items: center; gap: 3px;
+    font-size: 11px; color: var(--texte-2);
+  }
+  .header-actions svg { color: var(--encre); }
+  .panier-badge { position: relative; }
+  .panier-badge .compte {
+    position: absolute; top: -6px; right: -10px;
+    background: var(--safran); color: #2A1B00;
+    font-size: 10px; font-weight: 700;
+    border-radius: 99px; padding: 1px 6px;
+  }
+
+  nav.categories { border-top: 1px solid var(--ligne); background: var(--blanc); }
+  nav.categories .wrap {
+    display: flex; gap: 4px; overflow-x: auto;
+  }
+  nav.categories a {
+    padding: 12px 14px;
+    font-size: 13.5px; font-weight: 500; color: var(--texte);
+    border-bottom: 2.5px solid transparent;
+    white-space: nowrap;
+  }
+  nav.categories a:hover { color: var(--encre); border-bottom-color: var(--ligne); }
+  nav.categories a.actif {
+    color: var(--encre); font-weight: 700;
+    border-bottom-color: var(--safran);
+  }
+
+  /* ── Héro ───────────────────────────────── */
+  .hero { background: linear-gradient(180deg, var(--blanc) 0%, var(--papier) 100%); }
+  .hero .wrap {
+    display: grid; grid-template-columns: 1.05fr .95fr;
+    gap: 48px; align-items: center;
+    padding-top: 64px; padding-bottom: 72px;
+  }
+  .eyebrow {
+    display: inline-block;
+    font-size: 11.5px; font-weight: 700;
+    letter-spacing: .18em; text-transform: uppercase;
+    color: var(--safran-fonce);
+    margin-bottom: 18px;
+  }
+  .hero h1 {
+    font-family: var(--serif);
+    font-size: clamp(34px, 4.6vw, 52px);
+    line-height: 1.08;
+    font-weight: 700;
+    color: var(--encre);
+    text-wrap: balance;
+    margin-bottom: 20px;
+  }
+  .hero h1 em { font-style: italic; color: var(--safran-fonce); }
+  .hero p.accroche {
+    font-size: 17px; color: var(--texte-2);
+    max-width: 46ch; margin-bottom: 30px;
+  }
+  .cta-groupe { display: flex; gap: 14px; flex-wrap: wrap; }
+  .btn {
+    display: inline-flex; align-items: center; gap: 9px;
+    border-radius: 12px; font-size: 15px; font-weight: 600;
+    padding: 14px 26px; cursor: pointer; border: 0;
+  }
+  .btn-principal { background: var(--encre); color: #fff; box-shadow: 0 10px 24px rgba(10,36,99,.22); }
+  .btn-principal:hover { background: var(--encre-2); }
+  .btn-second {
+    background: transparent; color: var(--encre);
+    border: 1.5px solid var(--ligne);
+  }
+  .btn-second:hover { border-color: var(--encre); }
+  .hero-note { margin-top: 22px; font-size: 13px; color: var(--texte-2); }
+  .hero-note b { color: var(--encre); }
+
+  /* Composition : liste scolaire */
+  .compo { position: relative; min-height: 380px; }
+  .liste-carte {
+    position: relative; z-index: 2;
+    background: var(--blanc);
+    border: 1px solid var(--ligne);
+    border-radius: 16px;
+    box-shadow: 0 24px 60px rgba(7,21,56,.14);
+    padding: 26px 28px;
+    max-width: 360px; margin: 0 auto;
+    transform: rotate(-1.5deg);
+  }
+  .liste-carte .entete {
+    display: flex; justify-content: space-between; align-items: baseline;
+    border-bottom: 1px dashed var(--ligne);
+    padding-bottom: 12px; margin-bottom: 14px;
+  }
+  .liste-carte .entete h3 { font-family: var(--serif); font-size: 17px; color: var(--encre); }
+  .liste-carte .entete span { font-size: 11px; color: var(--texte-2); }
+  .liste-ligne {
+    display: flex; align-items: center; gap: 11px;
+    padding: 7px 0; font-size: 13.5px;
+  }
+  .coche {
+    flex: none; width: 18px; height: 18px;
+    border-radius: 5px; border: 1.5px solid var(--ligne);
+    display: grid; place-items: center;
+  }
+  .coche.ok { background: var(--encre); border-color: var(--encre); }
+  .coche.ok::after {
+    content: ""; width: 9px; height: 5px;
+    border-left: 2px solid var(--sable); border-bottom: 2px solid var(--sable);
+    transform: rotate(-45deg) translateY(-1px);
+  }
+  .liste-ligne .prix { margin-left: auto; font-size: 12.5px; color: var(--texte-2); font-variant-numeric: tabular-nums; }
+  .liste-carte .total {
+    display: flex; justify-content: space-between;
+    border-top: 1px dashed var(--ligne);
+    margin-top: 12px; padding-top: 14px;
+    font-weight: 700; color: var(--encre); font-size: 15px;
+  }
+  .badge-pack {
+    position: absolute; z-index: 3; right: 6%; top: -16px;
+    background: var(--safran); color: #2A1B00;
+    font-size: 12px; font-weight: 700;
+    padding: 9px 16px; border-radius: 99px;
+    box-shadow: 0 10px 22px rgba(245,166,35,.4);
+    transform: rotate(2deg);
+  }
+  .pile-livres {
+    position: absolute; z-index: 1; left: 2%; bottom: -8px;
+    display: flex; flex-direction: column; gap: 4px; width: 130px;
+    opacity: .95;
+  }
+  .pile-livres span {
+    height: 20px; border-radius: 4px;
+    box-shadow: 0 4px 10px rgba(7,21,56,.15);
+  }
+  .pile-livres span:nth-child(1) { background: var(--encre-2); width: 88%; margin-left: 8%; }
+  .pile-livres span:nth-child(2) { background: var(--safran); width: 100%; }
+  .pile-livres span:nth-child(3) { background: var(--encre); width: 92%; margin-left: 3%; }
+  .pile-livres span:nth-child(4) { background: #8FB3E8; width: 97%; }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .hero h1, .hero .accroche, .cta-groupe, .hero-note { animation: lever .7s ease both; }
+    .compo { animation: lever .7s .15s ease both; }
+    @keyframes lever { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+  }
+
+  /* ── Sections communes ──────────────────── */
+  section.bloc { padding: 64px 0; }
+  .bloc-titre { margin-bottom: 34px; }
+  .bloc-titre h2 {
+    font-family: var(--serif);
+    font-size: clamp(24px, 3vw, 32px);
+    color: var(--encre); font-weight: 700;
+    text-wrap: balance;
+  }
+  .bloc-titre p { color: var(--texte-2); margin-top: 6px; font-size: 15px; }
+  .bloc-titre .ligne-h { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+  .voir-tout { font-size: 14px; font-weight: 600; color: var(--encre); border-bottom: 1.5px solid var(--safran); padding-bottom: 1px; }
+
+  /* ── Étapes ─────────────────────────────── */
+  .etapes { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
+  .etape {
+    background: var(--blanc);
+    border: 1px solid var(--ligne);
+    border-radius: 16px;
+    padding: 26px 24px;
+  }
+  .etape .num {
+    font-family: var(--serif); font-size: 15px; font-weight: 700;
+    color: var(--safran-fonce);
+    display: inline-block; margin-bottom: 12px;
+    border-bottom: 2px solid var(--sable); padding-bottom: 2px;
+  }
+  .etape h3 { font-size: 16.5px; color: var(--encre); margin-bottom: 7px; }
+  .etape p { font-size: 14px; color: var(--texte-2); }
+
+  /* ── Univers / catégories ───────────────── */
+  .univers { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
+  .univers a {
+    display: flex; align-items: center; gap: 16px;
+    background: var(--blanc);
+    border: 1px solid var(--ligne);
+    border-radius: 16px;
+    padding: 20px 22px;
+    transition: border-color .15s ease, transform .15s ease;
+  }
+  .univers a:hover { border-color: var(--encre); transform: translateY(-2px); }
+  .univers .icone {
+    flex: none; width: 46px; height: 46px;
+    border-radius: 12px;
+    background: var(--papier);
+    display: grid; place-items: center;
+    color: var(--encre);
+  }
+  .univers h3 { font-size: 15px; color: var(--encre); }
+  .univers p { font-size: 12.5px; color: var(--texte-2); }
+
+  /* ── Sélection livres ───────────────────── */
+  .grille-livres { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; }
+  .livre {
+    background: var(--blanc);
+    border: 1px solid var(--ligne);
+    border-radius: 16px;
+    overflow: hidden;
+    display: flex; flex-direction: column;
+    transition: transform .15s ease, box-shadow .15s ease;
+  }
+  .livre:hover { transform: translateY(-3px); box-shadow: 0 16px 34px rgba(7,21,56,.1); }
+  .couverture {
+    height: 190px; display: flex; align-items: flex-end;
+    padding: 18px;
+    position: relative;
+  }
+  .couverture .titre-couv {
+    font-family: var(--serif); font-weight: 700;
+    font-size: 19px; line-height: 1.15; color: #fff;
+    text-wrap: balance;
+  }
+  .couverture .auteur-couv {
+    font-size: 10.5px; letter-spacing: .14em; text-transform: uppercase;
+    color: rgba(255,255,255,.75); margin-top: 6px;
+  }
+  .couv-1 { background: linear-gradient(160deg, #16409C, #071538); }
+  .couv-2 { background: linear-gradient(160deg, #D88A0A, #8A5200); }
+  .couv-3 { background: linear-gradient(160deg, #1D6A5A, #0A2E27); }
+  .couv-4 { background: linear-gradient(160deg, #7A2E4A, #371222); }
+  .prog-badge {
+    position: absolute; top: 14px; left: 14px;
+    background: rgba(255,255,255,.92); color: var(--encre);
+    font-size: 10.5px; font-weight: 700;
+    padding: 4px 10px; border-radius: 99px;
+  }
+  .livre .infos { padding: 16px 18px 18px; display: flex; flex-direction: column; gap: 4px; flex: 1; }
+  .livre .infos h3 { font-size: 14.5px; color: var(--texte); }
+  .livre .infos .auteur { font-size: 12.5px; color: var(--texte-2); }
+  .livre .achat {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-top: auto; padding-top: 12px;
+  }
+  .livre .prix { font-size: 17px; font-weight: 700; color: var(--encre); font-variant-numeric: tabular-nums; }
+  .livre .prix small { font-size: 11px; font-weight: 600; color: var(--texte-2); }
+  .btn-ajout {
+    background: var(--papier); color: var(--encre);
+    border: 1.5px solid var(--ligne); border-radius: 10px;
+    font-size: 13px; font-weight: 600;
+    padding: 8px 14px; cursor: pointer;
+  }
+  .btn-ajout:hover { background: var(--encre); color: #fff; border-color: var(--encre); }
+
+  /* ── Fidélité ───────────────────────────── */
+  .fidelite { background: var(--nuit); }
+  .fidelite .wrap {
+    display: grid; grid-template-columns: 1fr 1fr;
+    gap: 56px; align-items: center;
+    padding-top: 72px; padding-bottom: 72px;
+  }
+  .fidelite .eyebrow { color: var(--sable); }
+  .fidelite h2 {
+    font-family: var(--serif);
+    font-size: clamp(26px, 3.4vw, 36px);
+    color: #fff; line-height: 1.15;
+    text-wrap: balance; margin-bottom: 16px;
+  }
+  .fidelite p { color: rgba(255,255,255,.65); font-size: 15.5px; max-width: 46ch; margin-bottom: 26px; }
+  .fidelite .avantages { display: grid; gap: 10px; margin-bottom: 30px; }
+  .fidelite .avantages li {
+    list-style: none; display: flex; gap: 12px; align-items: baseline;
+    color: rgba(255,255,255,.85); font-size: 14.5px;
+  }
+  .fidelite .avantages li::before {
+    content: ""; flex: none; width: 8px; height: 8px;
+    border-radius: 2px; background: var(--safran);
+    transform: rotate(45deg) translateY(-1px);
+  }
+  .btn-or { background: var(--safran); color: #2A1B00; }
+  .btn-or:hover { background: var(--sable); }
+
+  .carte-fid {
+    background: linear-gradient(150deg, #0E2F7E, var(--encre) 55%, #061440);
+    border-radius: 20px;
+    padding: 28px;
+    max-width: 400px; margin-left: auto;
+    box-shadow: 0 30px 70px rgba(0,0,0,.45);
+    border: 1px solid rgba(255,208,128,.18);
+  }
+  .carte-fid .haut { display: flex; justify-content: space-between; margin-bottom: 26px; }
+  .carte-fid .marque { font-family: var(--serif); font-size: 22px; letter-spacing: .2em; color: var(--sable); font-weight: 700; }
+  .carte-fid .marque + div { font-size: 8.5px; letter-spacing: .3em; color: rgba(255,255,255,.4); text-transform: uppercase; }
+  .carte-fid .niveau {
+    align-self: flex-start;
+    background: var(--safran); color: #2A1B00;
+    font-size: 11px; font-weight: 700;
+    border-radius: 99px; padding: 5px 13px; height: fit-content;
+  }
+  .carte-fid .porteur { color: #fff; font-size: 16px; margin-bottom: 16px; }
+  .carte-fid .pts-label { font-size: 9px; letter-spacing: .12em; color: rgba(255,255,255,.4); }
+  .carte-fid .pts { font-size: 36px; font-weight: 700; color: var(--sable); font-variant-numeric: tabular-nums; }
+  .carte-fid .barre { background: rgba(0,0,0,.35); height: 5px; border-radius: 99px; margin: 12px 0 18px; }
+  .carte-fid .barre i { display: block; width: 62%; height: 5px; border-radius: 99px; background: var(--safran); }
+  .carte-fid .bas { display: flex; justify-content: space-between; color: rgba(255,255,255,.75); }
+  .carte-fid .numero { letter-spacing: .3em; font-size: 13.5px; font-weight: 600; }
+  .carte-fid .mention { font-size: 9px; letter-spacing: .2em; color: rgba(255,255,255,.4); }
+
+  /* ── Réassurance ────────────────────────── */
+  .reassurance { border-top: 1px solid var(--ligne); background: var(--blanc); }
+  .reassurance .wrap {
+    display: grid; grid-template-columns: repeat(4, 1fr);
+    gap: 24px; padding-top: 34px; padding-bottom: 34px;
+  }
+  .reassurance div h3 { font-size: 14px; color: var(--encre); margin-bottom: 3px; }
+  .reassurance div p { font-size: 12.5px; color: var(--texte-2); }
+
+  /* ── Footer ─────────────────────────────── */
+  footer.site {
+    background: var(--nuit); color: rgba(255,255,255,.65);
+    font-size: 13.5px;
+  }
+  footer.site .wrap {
+    display: grid; grid-template-columns: 1.4fr 1fr 1fr 1fr;
+    gap: 40px; padding-top: 56px; padding-bottom: 40px;
+  }
+  footer.site h4 {
+    color: #fff; font-size: 12px; letter-spacing: .14em;
+    text-transform: uppercase; margin-bottom: 14px;
+  }
+  footer.site ul { list-style: none; padding: 0; display: grid; gap: 8px; }
+  footer.site a:hover { color: var(--sable); }
+  footer .logo-pied { font-family: var(--serif); font-size: 24px; letter-spacing: .14em; color: #fff; font-weight: 700; margin-bottom: 10px; }
+  footer .logo-pied span { color: var(--safran); }
+  .footer-bas {
+    border-top: 1px solid rgba(255,255,255,.1);
+  }
+  .footer-bas .wrap {
+    display: flex; justify-content: space-between; gap: 16px; flex-wrap: wrap;
+    padding-top: 18px; padding-bottom: 22px;
+    font-size: 12px; color: rgba(255,255,255,.4);
+  }
+
+  /* ── Responsive ─────────────────────────── */
+  @media (max-width: 900px) {
+    .hero .wrap, .fidelite .wrap { grid-template-columns: 1fr; gap: 40px; }
+    .carte-fid { margin-left: 0; }
+    .grille-livres { grid-template-columns: repeat(2, 1fr); }
+    .univers { grid-template-columns: repeat(2, 1fr); }
+    .etapes { grid-template-columns: 1fr; }
+    .reassurance .wrap { grid-template-columns: repeat(2, 1fr); }
+    footer.site .wrap { grid-template-columns: 1fr 1fr; }
+    .header-ligne { flex-wrap: wrap; }
+    .recherche { order: 3; flex-basis: 100%; }
+  }
+  @media (max-width: 560px) {
+    .grille-livres, .univers { grid-template-columns: 1fr; }
+    .topbar .wrap { justify-content: center; }
+  }
+</style>
+
+<div class="ruban">Maquette — proposition de refonte pour dsm.ma · non contractuelle</div>
+
+<div class="topbar">
+  <div class="wrap">
+    <span>📍 Retrait gratuit en magasin — <b>Casablanca</b></span>
+    <span>Livraison partout au Maroc · <b>05 22 00 00 00</b></span>
+  </div>
+</div>
+
+<header class="site">
+  <div class="wrap header-ligne">
+    <a class="logo" href="#" aria-label="DSM Librairie — accueil">
+      <span class="sigle">DSM<span class="point">.</span></span>
+      <span class="sous">Librairie · Papeterie</span>
+    </a>
+    <div class="recherche" role="search">
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><circle cx="11" cy="11" r="7"/><line x1="16.5" y1="16.5" x2="21" y2="21"/></svg>
+      Titre, auteur, ISBN ou fourniture…
+      <button class="btn-cherche" type="button">Rechercher</button>
+    </div>
+    <div class="header-actions">
+      <a href="#">
+        <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 20c1.5-3.5 4.5-5 8-5s6.5 1.5 8 5"/></svg>
+        Compte
+      </a>
+      <a href="#" class="panier-badge">
+        <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 7h12l1.5 13h-15z"/><path d="M9 7a3 3 0 0 1 6 0"/></svg>
+        <span class="compte">3</span>
+        Panier
+      </a>
+    </div>
+  </div>
+  <nav class="categories" aria-label="Catégories">
+    <div class="wrap">
+      <a class="actif" href="#">Rentrée scolaire</a>
+      <a href="#">Livres scolaires</a>
+      <a href="#">Littérature</a>
+      <a href="#">Fournitures</a>
+      <a href="#">Papeterie</a>
+      <a href="#">Beaux-arts</a>
+      <a href="#">Bureau</a>
+      <a href="#">Jeux éducatifs</a>
+    </div>
+  </nav>
+</header>
+
+<section class="hero">
+  <div class="wrap">
+    <div>
+      <span class="eyebrow">Rentrée scolaire 2026 – 2027</span>
+      <h1>La liste scolaire, <em>c'est notre métier.</em></h1>
+      <p class="accroche">
+        Déposez la liste de fournitures de votre école : nous préparons le pack
+        complet, manuels et fournitures, prêt en magasin ou livré chez vous.
+      </p>
+      <div class="cta-groupe">
+        <a class="btn btn-principal" href="#">Déposer ma liste scolaire</a>
+        <a class="btn btn-second" href="#">Voir les écoles partenaires</a>
+      </div>
+      <p class="hero-note"><b>+120 écoles</b> déjà référencées · pack prêt sous <b>48 h</b></p>
+    </div>
+    <div class="compo" aria-hidden="true">
+      <span class="badge-pack">✓ Pack complet préparé</span>
+      <div class="liste-carte">
+        <div class="entete">
+          <h3>Liste scolaire — CE2</h3>
+          <span>École Al Fajr</span>
+        </div>
+        <div class="liste-ligne"><span class="coche ok"></span> Cahiers 96 p. grand format ×6 <span class="prix">54 DH</span></div>
+        <div class="liste-ligne"><span class="coche ok"></span> Manuel « Mes apprentissages » <span class="prix">62 DH</span></div>
+        <div class="liste-ligne"><span class="coche ok"></span> Trousse complète stylos + crayons <span class="prix">48 DH</span></div>
+        <div class="liste-ligne"><span class="coche ok"></span> Ardoise + feutres effaçables <span class="prix">27 DH</span></div>
+        <div class="liste-ligne"><span class="coche"></span> Cartable (au choix en magasin) <span class="prix">—</span></div>
+        <div class="total"><span>Total pack</span><span>191 DH</span></div>
+      </div>
+      <div class="pile-livres"><span></span><span></span><span></span><span></span></div>
+    </div>
+  </div>
+</section>
+
+<section class="bloc">
+  <div class="wrap">
+    <div class="bloc-titre">
+      <h2>Comment ça marche&nbsp;?</h2>
+      <p>Trois étapes, zéro file d'attente à la rentrée.</p>
+    </div>
+    <div class="etapes">
+      <div class="etape">
+        <span class="num">Étape 1</span>
+        <h3>Choisissez votre école et la classe</h3>
+        <p>Les listes officielles des écoles partenaires sont déjà enregistrées. Votre école n'y est pas&nbsp;? Envoyez-nous la liste en photo.</p>
+      </div>
+      <div class="etape">
+        <span class="num">Étape 2</span>
+        <h3>Nous préparons le pack complet</h3>
+        <p>Manuels, cahiers et fournitures vérifiés article par article par notre équipe, avec le détail des prix ligne par ligne.</p>
+      </div>
+      <div class="etape">
+        <span class="num">Étape 3</span>
+        <h3>Retrait en magasin ou livraison</h3>
+        <p>Récupérez le pack au magasin sous 48&nbsp;h ou faites-vous livrer partout au Maroc. Paiement en ligne ou sur place.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="bloc" style="padding-top: 0;">
+  <div class="wrap">
+    <div class="bloc-titre">
+      <h2>Nos univers</h2>
+    </div>
+    <div class="univers">
+      <a href="#">
+        <span class="icone"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M4 5a2 2 0 0 1 2-2h6v18H6a2 2 0 0 0-2 2z"/><path d="M12 3h6a2 2 0 0 1 2 2v16a2 2 0 0 0-2-2h-6z"/></svg></span>
+        <div><h3>Livres scolaires</h3><p>Manuels du programme marocain</p></div>
+      </a>
+      <a href="#">
+        <span class="icone"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M12 21V7c0-2 1.5-4 4-4h4v14h-4c-2.5 0-4 2-4 4z"/><path d="M12 21V7c0-2-1.5-4-4-4H4v14h4c2.5 0 4 2 4 4z"/></svg></span>
+        <div><h3>Littérature &amp; jeunesse</h3><p>Romans, essais, albums illustrés</p></div>
+      </a>
+      <a href="#">
+        <span class="icone"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M9 3h6v4H9z"/><rect x="5" y="5" width="14" height="16" rx="2"/><path d="M9 12h6M9 16h6"/></svg></span>
+        <div><h3>Fournitures scolaires</h3><p>Cahiers, cartables, trousses</p></div>
+      </a>
+      <a href="#">
+        <span class="icone"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M17 3l4 4L8 20l-5 1 1-5z"/><path d="M14 6l4 4"/></svg></span>
+        <div><h3>Papeterie &amp; écriture</h3><p>Stylos, carnets, agendas</p></div>
+      </a>
+      <a href="#">
+        <span class="icone"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 3a9 9 0 0 0 0 18c1.5 0 2-1 1.5-2.5S13 16 14.5 15s6.5.5 6.5-3"/><circle cx="8.5" cy="9" r="1.1"/><circle cx="13.5" cy="7.5" r="1.1"/></svg></span>
+        <div><h3>Beaux-arts</h3><p>Peinture, dessin, loisirs créatifs</p></div>
+      </a>
+      <a href="#">
+        <span class="icone"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/></svg></span>
+        <div><h3>Bureau &amp; informatique</h3><p>Classement, consommables</p></div>
+      </a>
+    </div>
+  </div>
+</section>
+
+<section class="bloc" style="padding-top: 0;">
+  <div class="wrap">
+    <div class="bloc-titre ligne-h">
+      <div>
+        <h2>La sélection du libraire</h2>
+        <p>Œuvres au programme et coups de cœur, choisis en magasin.</p>
+      </div>
+      <a class="voir-tout" href="#">Tout le catalogue →</a>
+    </div>
+    <div class="grille-livres">
+      <article class="livre">
+        <div class="couverture couv-1">
+          <span class="prog-badge">Programme 1ʳᵉ bac</span>
+          <div>
+            <div class="titre-couv">La Boîte à merveilles</div>
+            <div class="auteur-couv">Ahmed Sefrioui</div>
+          </div>
+        </div>
+        <div class="infos">
+          <h3>La Boîte à merveilles</h3>
+          <span class="auteur">Ahmed Sefrioui</span>
+          <div class="achat">
+            <span class="prix">39 <small>DH</small></span>
+            <button class="btn-ajout" type="button">Ajouter</button>
+          </div>
+        </div>
+      </article>
+      <article class="livre">
+        <div class="couverture couv-2">
+          <span class="prog-badge">Programme 2ᵉ bac</span>
+          <div>
+            <div class="titre-couv">Il était une fois un vieux couple heureux</div>
+            <div class="auteur-couv">M. Khaïr-Eddine</div>
+          </div>
+        </div>
+        <div class="infos">
+          <h3>Il était une fois un vieux couple heureux</h3>
+          <span class="auteur">Mohammed Khaïr-Eddine</span>
+          <div class="achat">
+            <span class="prix">42 <small>DH</small></span>
+            <button class="btn-ajout" type="button">Ajouter</button>
+          </div>
+        </div>
+      </article>
+      <article class="livre">
+        <div class="couverture couv-3">
+          <span class="prog-badge">Jeunesse</span>
+          <div>
+            <div class="titre-couv">Le Petit Prince</div>
+            <div class="auteur-couv">A. de Saint-Exupéry</div>
+          </div>
+        </div>
+        <div class="infos">
+          <h3>Le Petit Prince</h3>
+          <span class="auteur">Antoine de Saint-Exupéry</span>
+          <div class="achat">
+            <span class="prix">55 <small>DH</small></span>
+            <button class="btn-ajout" type="button">Ajouter</button>
+          </div>
+        </div>
+      </article>
+      <article class="livre">
+        <div class="couverture couv-4">
+          <span class="prog-badge">Coup de cœur</span>
+          <div>
+            <div class="titre-couv">Le Pain nu</div>
+            <div class="auteur-couv">Mohamed Choukri</div>
+          </div>
+        </div>
+        <div class="infos">
+          <h3>Le Pain nu</h3>
+          <span class="auteur">Mohamed Choukri</span>
+          <div class="achat">
+            <span class="prix">78 <small>DH</small></span>
+            <button class="btn-ajout" type="button">Ajouter</button>
+          </div>
+        </div>
+      </article>
+    </div>
+  </div>
+</section>
+
+<section class="fidelite">
+  <div class="wrap">
+    <div>
+      <span class="eyebrow">Programme fidélité</span>
+      <h2>Chaque achat compte. Littéralement.</h2>
+      <p>
+        La carte fidélité DSM est gratuite et fonctionne en magasin comme en ligne :
+        1&nbsp;dirham dépensé = 1&nbsp;point.
+      </p>
+      <ul class="avantages">
+        <li>Points cumulés automatiquement à chaque passage en caisse</li>
+        <li>Bons d'achat dès 2&nbsp;000 points, remises rentrée en avant-première</li>
+        <li>Suivi des points en temps réel sur l'application DSM</li>
+      </ul>
+      <a class="btn btn-or" href="#">Créer ma carte gratuitement</a>
+    </div>
+    <div class="carte-fid" aria-hidden="true">
+      <div class="haut">
+        <div>
+          <div class="marque">DSM</div>
+          <div>Librairie · Fidélité</div>
+        </div>
+        <span class="niveau">🥇 Or</span>
+      </div>
+      <div class="porteur">Salma Bennani</div>
+      <div class="pts-label">POINTS FIDÉLITÉ</div>
+      <div class="pts">1 250</div>
+      <div class="barre"><i></i></div>
+      <div class="bas">
+        <span class="numero">•••• 4832</span>
+        <span class="mention">FIDÉLITÉ</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="reassurance">
+  <div class="wrap">
+    <div><h3>Retrait en magasin gratuit</h3><p>Commande prête sous 48 h</p></div>
+    <div><h3>Livraison partout au Maroc</h3><p>Offerte dès 300 DH d'achat</p></div>
+    <div><h3>Paiement sécurisé</h3><p>Carte bancaire ou à la livraison</p></div>
+    <div><h3>Conseil de libraires</h3><p>Une vraie équipe en magasin</p></div>
+  </div>
+</div>
+
+<footer class="site">
+  <div class="wrap">
+    <div>
+      <div class="logo-pied">DSM<span>.</span></div>
+      <p>Librairie et papeterie généraliste au service des familles, des écoles et des entreprises depuis le premier jour.</p>
+    </div>
+    <div>
+      <h4>Boutique</h4>
+      <ul>
+        <li><a href="#">Rentrée scolaire</a></li>
+        <li><a href="#">Livres</a></li>
+        <li><a href="#">Papeterie</a></li>
+        <li><a href="#">Beaux-arts</a></li>
+      </ul>
+    </div>
+    <div>
+      <h4>Services</h4>
+      <ul>
+        <li><a href="#">Listes scolaires</a></li>
+        <li><a href="#">Carte fidélité</a></li>
+        <li><a href="#">Devis écoles &amp; entreprises</a></li>
+        <li><a href="#">Suivi de commande</a></li>
+      </ul>
+    </div>
+    <div>
+      <h4>Contact</h4>
+      <ul>
+        <li>Casablanca, Maroc</li>
+        <li>05 22 00 00 00</li>
+        <li><a href="mailto:librairie.dsm@gmail.com">librairie.dsm@gmail.com</a></li>
+      </ul>
+    </div>
+  </div>
+  <div class="footer-bas">
+    <div class="wrap">
+      <span>© 2026 DSM Librairie — maquette de proposition, contenus fictifs à titre d'illustration.</span>
+      <span>Mentions légales · CGV · Confidentialité</span>
+    </div>
+  </div>
+</footer>
