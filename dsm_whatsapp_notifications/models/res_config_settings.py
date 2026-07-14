@@ -63,6 +63,14 @@ class ResConfigSettings(models.TransientModel):
         placeholder='DSM',
     )
 
+    # ── Délai de retrait ────────────────────────────────────────────────────────
+    whatsapp_pickup_delay = fields.Integer(
+        string='Délai de retrait (jours)',
+        config_parameter='dsm_whatsapp.pickup_delay',
+        default=15,
+        help='Nombre de jours accordés au client pour récupérer sa commande après notification de disponibilité.',
+    )
+
     def action_test_sms(self):
         """Envoie un SMS de test via Inwi Business SMS."""
         self.ensure_one()

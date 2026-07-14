@@ -24,6 +24,18 @@
                             </div>
                         </div>
 
+                        <!-- Délai de retrait -->
+                        <div class="col-12 col-lg-6 o_setting_box" invisible="not whatsapp_enabled">
+                            <div class="o_setting_right_pane">
+                                <label for="whatsapp_pickup_delay" string="Délai de retrait (jours)"/>
+                                <div class="text-muted">
+                                    Nombre de jours accordés au client pour récupérer sa commande après notification.
+                                    Un rappel automatique est envoyé le dernier jour.
+                                </div>
+                                <field name="whatsapp_pickup_delay"/>
+                            </div>
+                        </div>
+
                         <!-- Mode d'envoi -->
                         <div class="col-12 o_setting_box" invisible="not whatsapp_enabled">
                             <div class="o_setting_right_pane">

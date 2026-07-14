@@ -1,5 +1,6 @@
 import logging
 import requests
+from datetime import date, timedelta
 from odoo import models, fields, api, _
 from odoo.exceptions import UserError
 
@@ -46,21 +47,27 @@ MSG_TEMPLATES = {
         "Bonjour {name},\n\n"
         "📚 Les articles suivants de votre commande *{ref}* ont été réservés pour vous :\n"
         "{titres}\n\n"
-        "Passez les récupérer en librairie pendant nos horaires d'ouverture.\n"
+        "Vous avez jusqu'au *{date_limite}* pour les récupérer en librairie.\n"
         "— DSM Librairie"
     ),
     'titres_recus': (
         "Bonjour {name},\n\n"
         "📦 Les articles suivants de votre commande *{ref}* sont arrivés en librairie :\n"
         "{titres}\n\n"
-        "Vous pouvez venir les récupérer pendant nos horaires d'ouverture.\n"
+        "Vous avez jusqu'au *{date_limite}* pour les récupérer.\n"
         "— DSM Librairie"
     ),
     'commande_complete': (
         "Bonjour {name},\n\n"
-        "🎉 Bonne nouvelle ! Votre commande *{ref}* est complète.\n"
-        "Tous vos articles sont disponibles en librairie.\n\n"
-        "Venez les récupérer pendant nos horaires d'ouverture.\n"
+        "🎉 Votre commande *{ref}* est complète ! Tous vos articles sont disponibles.\n\n"
+        "Vous avez jusqu'au *{date_limite}* pour venir les récupérer en librairie.\n"
+        "— DSM Librairie"
+    ),
+    'rappel_retrait': (
+        "Bonjour {name},\n\n"
+        "⏰ Rappel : votre commande *{ref}* vous attend toujours en librairie.\n"
+        "Date limite de retrait : *{date_limite}*\n\n"
+        "Merci de venir la récupérer dès que possible.\n"
         "— DSM Librairie"
     ),
 }
@@ -210,6 +217,19 @@ class SaleOrder(models.Model):
         if not phone:
             return False
 
+        # Calcul date limite de retrait
+        ICP = self.env['ir.config_parameter'].sudo()
+        delay = int(ICP.get_param('dsm_whatsapp.pickup_delay', 15))
+        if self.wa_date_limite_retrait:
+            date_limite = self.wa_date_limite_retrait.strftime('%d/%m/%Y')
+        else:
+            date_limite = (date.today() + timedelta(days=delay)).strftime('%d/%m/%Y')
+
+        # Mémorise la date limite à la première notification de disponibilité
+        _AVAILABILITY_EVENTS = ('titres_reserves', 'titres_recus', 'commande_complete')
+        if event in _AVAILABILITY_EVENTS and not self.wa_date_limite_retrait:
+            self.sudo().write({'wa_date_limite_retrait': date.today() + timedelta(days=delay)})
+
         nb_articles = int(sum(l.product_uom_qty for l in self.order_line))
         tpl = MSG_TEMPLATES.get(event, '')
         msg = tpl.format(
@@ -219,6 +239,7 @@ class SaleOrder(models.Model):
             nb_articles=nb_articles,
             titre=titre or '',
             titres=titres or '',
+            date_limite=date_limite,
         )
 
         mode = cfg.get('mode', 'whatsapp')
@@ -310,11 +331,28 @@ class SaleOrder(models.Model):
 
     wa_log_ids = fields.One2many('dsm.whatsapp.log', 'sale_order_id', string='Messages')
     wa_log_count = fields.Integer(string='Messages WhatsApp', compute='_wa_log_count')
+    wa_date_limite_retrait = fields.Date(string='Date limite de retrait', readonly=True, copy=False)
 
     @api.depends('wa_log_ids')
     def _wa_log_count(self):
         for order in self:
             order.wa_log_count = len(order.wa_log_ids)
+
+    # ─── Cron rappel retrait ─────────────────────────────────────────────────
+
+    @api.model
+    def _wa_cron_rappel_retrait(self):
+        """Envoie un rappel le jour de la date limite de retrait."""
+        today = fields.Date.today()
+        orders = self.search([
+            ('wa_date_limite_retrait', '=', today),
+            ('state', 'not in', ('done', 'cancel')),
+        ])
+        for order in orders:
+            try:
+                order._wa_notify('rappel_retrait')
+            except Exception as exc:
+                _logger.error('WA rappel retrait [%s]: %s', order.name, exc)
 
 
 class SaleOrderLine(models.Model):

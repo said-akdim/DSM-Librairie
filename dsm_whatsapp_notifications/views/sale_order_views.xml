@@ -19,7 +19,7 @@
                 </button>
             </xpath>
 
-            <!-- Bouton réception dans la barre d'actions -->
+            <!-- Bouton réception + date limite de retrait -->
             <xpath expr="//div[@name='button_box']" position="before">
                 <div name="wa_buttons" class="o_row" invisible="state in ('draft', 'cancel')">
                     <button name="action_wa_reception"
@@ -28,6 +28,13 @@
                             class="btn btn-secondary"
                             invisible="state not in ('sale', 'done')"
                             help="Notifie le client que sa commande est arrivée en librairie"/>
+                    <span class="text-muted ms-3"
+                          invisible="not wa_date_limite_retrait">
+                        Limite retrait :
+                    </span>
+                    <field name="wa_date_limite_retrait"
+                           class="fw-bold text-warning"
+                           invisible="not wa_date_limite_retrait"/>
                 </div>
             </xpath>
 

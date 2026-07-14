@@ -7,6 +7,7 @@
     'depends': ['sale', 'stock', 'base_setup'],
     'data': [
         'security/ir.model.access.csv',
+        'data/ir_cron.xml',
         'views/dsm_whatsapp_log_views.xml',
         'views/sale_order_views.xml',
         'views/res_config_settings_views.xml',
