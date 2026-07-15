@@ -46,9 +46,9 @@ MSG_TEMPLATES = {
     ),
     'titres_reserves': (
         "Bonjour {name},\n\n"
-        "📚 Les articles suivants de votre commande *{ref}* ont été réservés pour vous :\n"
+        "📚 Bonne nouvelle ! Les articles suivants de votre commande *{ref}* sont disponibles et réservés pour vous :\n"
         "{titres}\n\n"
-        "Vous avez jusqu'au *{date_limite}* pour les récupérer en librairie.\n"
+        "Nous vous informerons dès que votre commande sera complète.\n"
         "— DSM Librairie"
     ),
     'commande_complete': (
@@ -219,9 +219,8 @@ class SaleOrder(models.Model):
         else:
             date_limite = (date.today() + timedelta(days=delay)).strftime('%d/%m/%Y')
 
-        # Mémorise la date limite à la première notification de disponibilité
-        _AVAILABILITY_EVENTS = ('titres_reserves', 'titres_recus', 'commande_complete')
-        if event in _AVAILABILITY_EVENTS and not self.wa_date_limite_retrait:
+        # Mémorise la date limite uniquement quand la commande est complète
+        if event == 'commande_complete' and not self.wa_date_limite_retrait:
             self.sudo().write({'wa_date_limite_retrait': date.today() + timedelta(days=delay)})
 
         nb_articles = int(sum(l.product_uom_qty for l in self.order_line))

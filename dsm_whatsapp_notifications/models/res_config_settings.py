@@ -67,7 +67,7 @@ class ResConfigSettings(models.TransientModel):
     whatsapp_pickup_delay = fields.Integer(
         string='Délai de retrait (jours)',
         config_parameter='dsm_whatsapp.pickup_delay',
-        default=15,
+        default=5,
         help='Nombre de jours accordés au client pour récupérer sa commande après notification de disponibilité.',
     )
 
