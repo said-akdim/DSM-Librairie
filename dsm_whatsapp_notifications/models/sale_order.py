@@ -14,7 +14,6 @@ MSG_TEMPLATES = {
         "📚 Votre commande *{ref}* a bien été enregistrée chez DSM Librairie.\n\n"
         "*Articles commandés :*\n"
         "{articles}\n\n"
-        "Montant total : *{amount} DH*\n\n"
         "Nous vous contacterons dès que vos articles seront disponibles.\n"
         "Merci de votre confiance ! 🙏\n"
         "— DSM Librairie"
