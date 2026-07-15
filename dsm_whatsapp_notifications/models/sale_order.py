@@ -11,8 +11,10 @@ _logger = logging.getLogger(__name__)
 MSG_TEMPLATES = {
     'commande_creee': (
         "Bonjour {name},\n\n"
-        "📚 Votre commande *{ref}* a bien été enregistrée chez DSM Librairie.\n"
-        "Montant : *{amount} DH*\n\n"
+        "📚 Votre commande *{ref}* a bien été enregistrée chez DSM Librairie.\n\n"
+        "*Articles commandés :*\n"
+        "{articles}\n\n"
+        "Montant total : *{amount} DH*\n\n"
         "Nous vous contacterons dès que vos articles seront disponibles.\n"
         "Merci de votre confiance ! 🙏\n"
         "— DSM Librairie"
@@ -231,12 +233,18 @@ class SaleOrder(models.Model):
             self.sudo().write({'wa_date_limite_retrait': date.today() + timedelta(days=delay)})
 
         nb_articles = int(sum(l.product_uom_qty for l in self.order_line))
+        articles = '\n'.join(
+            f'  • {l.product_id.display_name} × {int(l.product_uom_qty)}'
+            for l in self.order_line
+            if l.product_id and l.product_uom_qty > 0
+        )
         tpl = MSG_TEMPLATES.get(event, '')
         msg = tpl.format(
             name=partner.name,
             ref=self.name,
             amount=f'{self.amount_total:.2f}',
             nb_articles=nb_articles,
+            articles=articles,
             titre=titre or '',
             titres=titres or '',
             date_limite=date_limite,
