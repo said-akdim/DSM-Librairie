@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!-- Ajout boutons et champs sur le formulaire sale.order -->
+    <record id="view_sale_order_form_wa" model="ir.ui.view">
+        <field name="name">sale.order.form.whatsapp</field>
+        <field name="model">sale.order</field>
+        <field name="inherit_id" ref="sale.view_order_form"/>
+        <field name="arch" type="xml">
+
+            <!-- Stat button dans le smart button bar -->
+            <xpath expr="//div[@name='button_box']" position="inside">
+                <button name="action_wa_log"
+                        type="object"
+                        class="oe_stat_button"
+                        icon="fa-whatsapp"
+                        invisible="wa_log_count == 0">
+                    <field name="wa_log_count" widget="statinfo" string="Messages"/>
+                </button>
+            </xpath>
+
+            <!-- Bouton réception + date limite de retrait -->
+            <xpath expr="//div[@name='button_box']" position="before">
+                <div name="wa_buttons" class="o_row" invisible="state in ('draft', 'cancel')">
+                    <button name="action_wa_reception"
+                            string="📦 Notifier réception"
+                            type="object"
+                            class="btn btn-secondary"
+                            invisible="state not in ('sale', 'done')"
+                            help="Notifie le client que sa commande est arrivée en librairie"/>
+                    <span class="text-muted ms-3"
+                          invisible="not wa_date_limite_retrait">
+                        Limite retrait :
+                    </span>
+                    <field name="wa_date_limite_retrait"
+                           class="fw-bold text-warning"
+                           invisible="not wa_date_limite_retrait"/>
+                </div>
+            </xpath>
+
+        </field>
+    </record>
+
+    <!-- Ajout bouton "Titre disponible" sur les lignes de commande -->
+    <record id="view_sale_order_line_form_wa" model="ir.ui.view">
+        <field name="name">sale.order.line.form.whatsapp</field>
+        <field name="model">sale.order</field>
+        <field name="inherit_id" ref="sale.view_order_form"/>
+        <field name="arch" type="xml">
+
+            <!-- Colonne bouton dans la liste des lignes -->
+            <xpath expr="//field[@name='order_line']/list/field[@name='price_subtotal']" position="after">
+                <button name="action_wa_titre_disponible"
+                        string="📖 Titre dispo"
+                        type="object"
+                        title="Notifier le client que ce titre est disponible"
+                        class="btn btn-sm btn-info"/>
+            </xpath>
+
+        </field>
+    </record>
+
+</odoo>

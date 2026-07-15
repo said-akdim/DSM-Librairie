@@ -1,0 +1,3 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_dsm_whatsapp_log_user,dsm.whatsapp.log.user,model_dsm_whatsapp_log,base.group_user,1,0,0,0
+access_dsm_whatsapp_log_manager,dsm.whatsapp.log.manager,model_dsm_whatsapp_log,sales_team.group_sale_manager,1,1,1,1

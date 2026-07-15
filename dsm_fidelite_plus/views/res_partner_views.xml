@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <record id="view_partner_form_fidelite_plus" model="ir.ui.view">
+        <field name="name">res.partner.form.fidelite.plus</field>
+        <field name="model">res.partner</field>
+        <field name="inherit_id" ref="base.view_partner_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//page[@name='sales_purchases']" position="before">
+                <page name="fidelite_plus" string="Fidélité &amp; Préférences">
+                    <group string="Préférences de lecture">
+                        <field name="dsm_editeur_favori"/>
+                        <field name="dsm_langue_pref"/>
+                        <field name="dsm_budget_moyen"/>
+                        <field name="dsm_date_naissance"/>
+                    </group>
+                    <group string="Liste de souhaits">
+                        <field name="dsm_wishlist" nolabel="1" widget="text"
+                               placeholder='["Titre 1", "Titre 2", ...]'/>
+                    </group>
+                </page>
+            </xpath>
+        </field>
+    </record>
+
+</odoo>
