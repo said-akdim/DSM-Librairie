@@ -51,13 +51,6 @@ MSG_TEMPLATES = {
         "Vous avez jusqu'au *{date_limite}* pour les récupérer en librairie.\n"
         "— DSM Librairie"
     ),
-    'titres_recus': (
-        "Bonjour {name},\n\n"
-        "📦 Les articles suivants de votre commande *{ref}* sont arrivés en librairie :\n"
-        "{titres}\n\n"
-        "Vous avez jusqu'au *{date_limite}* pour les récupérer.\n"
-        "— DSM Librairie"
-    ),
     'commande_complete': (
         "Bonjour {name},\n\n"
         "🎉 Votre commande *{ref}* est complète ! Tous vos articles sont disponibles.\n\n"

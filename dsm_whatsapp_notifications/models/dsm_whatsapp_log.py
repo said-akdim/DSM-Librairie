@@ -20,8 +20,7 @@ class DsmWhatsappLog(models.Model):
         ('commande_reception', 'Articles reçus en librairie'),
         ('titre_disponible', 'Titre disponible'),
         ('commande_finalisee', 'Commande finalisée'),
-        ('titres_reserves', 'Titres réservés (picking)'),
-        ('titres_recus', 'Titres reçus (picking validé)'),
+        ('titres_reserves', 'Titres réservés'),
         ('commande_complete', 'Commande complète'),
         ('rappel_retrait', 'Rappel retrait commande'),
     ], string='Événement', readonly=True)
