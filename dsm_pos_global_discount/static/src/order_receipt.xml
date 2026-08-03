@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates id="template" xml:space="preserve">
+    <!-- Ligne unique « REMISE GLOBALE (X%) » entre les produits et les totaux -->
+    <t t-name="dsm_pos_global_discount.OrderReceipt" t-inherit="point_of_sale.OrderReceipt" t-inherit-mode="extension">
+        <xpath expr="//t[@t-set='taxTotals']" position="before">
+            <div t-if="props.data.dsmGlobalDiscount" class="d-flex fw-bolder pt-1">
+                <span t-esc="props.data.dsmGlobalDiscount.label"/>
+                <span t-esc="props.data.dsmGlobalDiscount.amount" class="ms-auto"/>
+            </div>
+        </xpath>
+    </t>
+</templates>
