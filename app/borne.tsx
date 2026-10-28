@@ -6,6 +6,7 @@
 
 import { CameraView, useCameraPermissions } from "expo-camera";
 import * as Haptics from "expo-haptics";
+import { activateKeepAwakeAsync, deactivateKeepAwake } from "expo-keep-awake";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
@@ -25,12 +26,17 @@ import {
   etatConnexion,
   onEtatConnexion,
   sessionCourante,
+  verifierLiaison,
 } from "./odoo18";
 
 /* Durée d'affichage du résultat avant retour à l'écran d'attente */
 const DELAI_RETOUR_MS = 10000;
 /* Anti-rebond : même code ignoré pendant ce délai */
 const ANTI_REBOND_MS = 2000;
+/* Vérification périodique de la liaison Odoo quand la borne est en attente */
+const BATTEMENT_MS = 60000;
+/* Étiquette du verrou de mise en veille */
+const VERROU_VEILLE = "borne-prix-dsm";
 
 const COULEUR_VOYANT: Record<EtatConnexion, string> = {
   connecte: "#27AE60",
@@ -100,12 +106,28 @@ export default function BornePrix() {
   const timerRetour = useRef<ReturnType<typeof setTimeout> | null>(null);
   const champDouchette = useRef<TextInput>(null);
 
+  /* Borne allumée en permanence : pas de mise en veille.
+     Le verrou peut être refusé (page web sans focus) : sans conséquence. */
+  useEffect(() => {
+    activateKeepAwakeAsync(VERROU_VEILLE).catch(() => {});
+    return () => { deactivateKeepAwake(VERROU_VEILLE).catch(() => {}); };
+  }, []);
+
   /* Connexion Odoo au démarrage + voyant d'état */
   useEffect(() => {
     const desabonner = onEtatConnexion((e, s) => { setEtat(e); setVersion(s.version); });
     connecter().catch(() => { /* le voyant passe au rouge */ });
     return desabonner;
   }, []);
+
+  /* Battement de cœur : garde la session ouverte et le voyant honnête */
+  useEffect(() => {
+    if (phase !== "attente") return;
+    const t = setInterval(() => {
+      verifierLiaison();   // met le voyant à jour, rouvre la session si besoin
+    }, BATTEMENT_MS);
+    return () => clearInterval(t);
+  }, [phase]);
 
   /* Horloge de la barre technique */
   useEffect(() => {

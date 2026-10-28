@@ -158,6 +158,22 @@ export async function connecter(force = false): Promise<boolean> {
   return authEnCours;
 }
 
+/**
+ * Vérifie que le serveur répond et que la session est toujours ouverte.
+ * Met à jour le voyant de la borne. Rouvre la session si elle a été perdue.
+ */
+export async function verifierLiaison(): Promise<boolean> {
+  try {
+    await versionServeur();
+    if (!session.uid) return await connecter(true);
+    majEtat("connecte");
+    return true;
+  } catch {
+    majEtat("erreur");
+    return false;
+  }
+}
+
 /** Ferme la session côté serveur et remet la borne en état déconnecté. */
 export async function deconnecter(): Promise<void> {
   try { await fetchOdoo("/web/session/destroy", {}); } catch { /* sans importance */ }
@@ -294,6 +310,7 @@ export default {
   callKw,
   searchRead,
   versionServeur,
+  verifierLiaison,
   chercherArticleParCode,
   onEtatConnexion,
   etatConnexion,

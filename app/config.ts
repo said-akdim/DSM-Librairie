@@ -8,15 +8,16 @@ import { Platform } from "react-native";
 
 const ODOO_PROD = "http://94.130.90.253:9069";
 
-export const ODOO_URL = Platform.OS === "web"
-  ? "http://localhost:8069"
-  : ODOO_PROD;
+/* EXPO_PUBLIC_ODOO_URL : à définir sur chaque borne (.env ou variable de build).
+   Sans elle, on garde le comportement de développement. */
+export const ODOO_URL = process.env.EXPO_PUBLIC_ODOO_URL
+  || (Platform.OS === "web" ? "http://localhost:8069" : ODOO_PROD);
 
 export const WS_URL = Platform.OS === "web"
   ? "ws://localhost:8090"
   : "ws://94.130.90.253:8090";
 
-export const ODOO_DB = "agora-prod";
+export const ODOO_DB = process.env.EXPO_PUBLIC_ODOO_DB || "agora-prod";
 
 /* Compte de service Odoo (borne de prix, caisse).
    À définir dans .env : EXPO_PUBLIC_ODOO_LOGIN / EXPO_PUBLIC_ODOO_PASSWORD
