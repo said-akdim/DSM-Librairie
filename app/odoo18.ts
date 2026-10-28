@@ -28,9 +28,7 @@ export interface ArticleOdoo {
   nom: string;
   codeBarre: string;
   reference: string;
-  prixHT: number;
-  prixTTC: number;
-  tauxTVA: number;          // % cumulé des taxes de vente
+  prix: number;             // prix public de vente (tel qu'il est dans Odoo)
   editeur: string;
   stock: number | null;
 }
@@ -227,10 +225,10 @@ export async function searchRead(
 
 const CHAMPS_VARIANTE = [
   "name", "lst_price", "list_price", "barcode", "default_code",
-  "taxes_id", "qty_available", "product_tmpl_id",
+  "qty_available", "product_tmpl_id",
 ];
 const CHAMPS_MODELE = [
-  "name", "list_price", "barcode", "default_code", "taxes_id", "qty_available",
+  "name", "list_price", "barcode", "default_code", "qty_available",
 ];
 
 /**
@@ -244,45 +242,20 @@ async function lireEditeur(templateId: number | null): Promise<string> {
   } catch { return ""; }
 }
 
-/**
- * Taux de TVA cumulé (%) et indication « prix déjà TTC » pour des taxes de vente.
- */
-async function lireTaxes(ids: number[]): Promise<{ taux: number; inclus: boolean }> {
-  if (!ids || ids.length === 0) return { taux: 0, inclus: false };
-  let taxes: any[] = [];
-  try {
-    taxes = await searchRead("account.tax", [["id", "in", ids]], ["amount", "amount_type", "price_include"], { limit: 10 });
-  } catch {
-    /* price_include n'existe pas sur toutes les versions : on retente sans */
-    try {
-      taxes = await searchRead("account.tax", [["id", "in", ids]], ["amount", "amount_type"], { limit: 10 });
-    } catch { return { taux: 0, inclus: false }; }
-  }
-  const pourcentages = taxes.filter(t => t.amount_type === "percent" || t.amount_type === "division");
-  const taux = pourcentages.reduce((s, t) => s + (t.amount || 0), 0);
-  const inclus = taxes.some(t => t.price_include === true);
-  return { taux, inclus };
-}
-
 function versArticle(
   ligne: any,
   modele: "product.product" | "product.template",
   code: string,
-  tva: { taux: number; inclus: boolean },
   editeur: string
 ): ArticleOdoo {
-  const base = (modele === "product.product" ? ligne.lst_price ?? ligne.list_price : ligne.list_price) ?? 0;
-  const prixTTC = tva.inclus ? base : base * (1 + tva.taux / 100);
-  const prixHT = tva.inclus ? base / (1 + tva.taux / 100) : base;
+  const prix = (modele === "product.product" ? ligne.lst_price ?? ligne.list_price : ligne.list_price) ?? 0;
   return {
     id: ligne.id,
     modele,
     nom: ligne.name || "",
     codeBarre: ligne.barcode || code,
     reference: ligne.default_code || "",
-    prixHT: Math.round(prixHT * 100) / 100,
-    prixTTC: Math.round(prixTTC * 100) / 100,
-    tauxTVA: tva.taux,
+    prix: Math.round(prix * 100) / 100,
     editeur,
     stock: typeof ligne.qty_available === "number" ? ligne.qty_available : null,
   };
@@ -302,14 +275,14 @@ export async function chercherArticleParCode(code: string): Promise<ArticleOdoo 
   const variantes = await searchRead("product.product", domaine, CHAMPS_VARIANTE, { limit: 1 });
   if (variantes[0]) {
     const tmplId = Array.isArray(variantes[0].product_tmpl_id) ? variantes[0].product_tmpl_id[0] : null;
-    const [tva, editeur] = await Promise.all([lireTaxes(variantes[0].taxes_id), lireEditeur(tmplId)]);
-    return versArticle(variantes[0], "product.product", terme, tva, editeur);
+    const editeur = await lireEditeur(tmplId);
+    return versArticle(variantes[0], "product.product", terme, editeur);
   }
 
   const modeles = await searchRead("product.template", domaine, CHAMPS_MODELE, { limit: 1 });
   if (modeles[0]) {
-    const [tva, editeur] = await Promise.all([lireTaxes(modeles[0].taxes_id), lireEditeur(modeles[0].id)]);
-    return versArticle(modeles[0], "product.template", terme, tva, editeur);
+    const editeur = await lireEditeur(modeles[0].id);
+    return versArticle(modeles[0], "product.template", terme, editeur);
   }
 
   return null;

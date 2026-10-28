@@ -233,10 +233,7 @@ export default function BornePrix() {
             <TouchableOpacity activeOpacity={1} style={st.centre} onPress={retourAttente}>
               <LogoDSM />
               <Text style={st.nomArticle} numberOfLines={3} adjustsFontSizeToFit>{article.nom}</Text>
-              <Text style={st.prix}>{article.prixTTC.toFixed(2)} DH</Text>
-              {article.tauxTVA > 0 && (
-                <Text style={st.prixDetail}>TTC · {article.prixHT.toFixed(2)} DH HT + TVA {article.tauxTVA}%</Text>
-              )}
+              <Text style={st.prix}>{article.prix.toFixed(2)} DH</Text>
               {!!article.editeur && <Text style={st.editeur}>{article.editeur}</Text>}
               <Text style={st.codeArticle}>{article.codeBarre || article.reference}</Text>
             </TouchableOpacity>
@@ -326,7 +323,6 @@ const st = StyleSheet.create({
 
   nomArticle: { fontSize: 38, fontWeight: "bold", color: "#05102A", textAlign: "center", marginTop: 18, lineHeight: 46 },
   prix: { fontSize: 72, fontWeight: "bold", color: "#05102A", marginTop: 18 },
-  prixDetail: { fontSize: 13, color: "#8AAABF", marginTop: 6 },
   editeur: { fontSize: 15, color: "#1A6FFF", marginTop: 10 },
   codeArticle: { fontSize: 13, color: "#8AAABF", letterSpacing: 3, marginTop: 14 },
 
