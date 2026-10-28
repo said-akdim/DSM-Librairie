@@ -9,9 +9,12 @@ import { Platform } from "react-native";
 const ODOO_PROD = "http://94.130.90.253:9069";
 
 /* EXPO_PUBLIC_ODOO_URL : à définir sur chaque borne (.env ou variable de build).
-   Sans elle, on garde le comportement de développement. */
+   Valeur vide = même origine que la page : les appels partent en /web/...
+   C'est le réglage des bornes Windows, derrière le serveur local qui
+   relaie Odoo (voir kiosque/ et docs/BORNE.md) : ni CORS, ni cookie bloqué.
+   Sans la variable, on garde le comportement de développement. */
 export const ODOO_URL = process.env.EXPO_PUBLIC_ODOO_URL
-  || (Platform.OS === "web" ? "http://localhost:8069" : ODOO_PROD);
+  ?? (Platform.OS === "web" ? "http://localhost:8069" : ODOO_PROD);
 
 export const WS_URL = Platform.OS === "web"
   ? "ws://localhost:8090"

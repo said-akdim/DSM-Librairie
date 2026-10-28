@@ -57,23 +57,60 @@ Verrouillage en mode kiosque :
 
 L'écran reste allumé en permanence (l'app désactive la mise en veille).
 
-### Borne Windows
+### Borne Windows 10 (procédure retenue)
+
+> **Pourquoi un serveur local ?** Dans un navigateur, une page servie depuis
+> une origine ne peut pas appeler Odoo sur une autre adresse : le navigateur
+> bloque la requête (CORS) et refuse de renvoyer le cookie de session. Le
+> petit serveur `kiosque/serveur-borne.js` sert l'application **et** relaie
+> les appels `/web/...` vers Odoo : le navigateur ne voit qu'une seule
+> origine, tout passe. Il n'exige aucune modification du serveur Odoo.
+
+**a. Sur un poste de travail — produire l'application**
 
 ```bash
 npm install
+EXPO_PUBLIC_ODOO_URL= EXPO_PUBLIC_ODOO_DB=agora-prod \
+EXPO_PUBLIC_ODOO_LOGIN=borne EXPO_PUBLIC_ODOO_PASSWORD=<mot_de_passe> \
 npx expo export --platform web --output-dir dist
 ```
 
-Publier `dist/` sur un petit serveur web (nginx, ou le serveur Odoo lui-même),
-puis lancer Chrome au démarrage de Windows :
+`EXPO_PUBLIC_ODOO_URL` **vide** est volontaire : les appels partent alors en
+`/web/...` sur la même origine, c'est-à-dire vers le relais local.
 
-```
-chrome.exe --kiosk --incognito --noerrdialogs ^
-  --disable-pinch --overscroll-history-navigation=0 ^
-  http://<serveur>/borne
+**b. Sur la borne — installer**
+
+1. Installer **Node.js LTS** (https://nodejs.org) et **Google Chrome**.
+2. Copier sur la borne, par exemple dans `C:\BorneDSM\` :
+   - le dossier `dist/` produit à l'étape a ;
+   - le dossier `kiosque/` du dépôt.
+3. Ouvrir `kiosque\demarrer-borne.bat` dans le Bloc-notes et vérifier
+   `ODOO_CIBLE` (adresse du serveur Odoo vue depuis la borne) et `PORT`.
+4. Double-cliquer sur `demarrer-borne.bat` : Chrome s'ouvre en plein écran
+   sur l'écran d'attente. Scanner un article pour vérifier.
+
+**c. Démarrage automatique**
+
+`Win+R` → `shell:startup` → y placer un raccourci vers `demarrer-borne.bat`.
+La borne redémarre donc seule après une coupure de courant.
+
+**d. Réglages Windows**
+
+```bat
+powercfg /change monitor-timeout-ac 0
+powercfg /change standby-timeout-ac 0
+powercfg /change disk-timeout-ac 0
 ```
 
-Désactiver la mise en veille de l'écran dans les options d'alimentation.
+- Désactiver l'écran de verrouillage et la veille prolongée.
+- Désactiver les redémarrages automatiques de Windows Update aux heures
+  d'ouverture (heures d'activité).
+- Vérifier que la **disposition du clavier Windows** correspond à celle
+  configurée dans le lecteur, sinon les chiffres scannés sortent faux.
+- `arreter-borne.bat` ferme Chrome et le serveur pour la maintenance.
+  En mode kiosque, `Alt+F4` ferme aussi Chrome ; pour un verrouillage
+  complet, utiliser l'**accès attribué** de Windows 10 (Paramètres →
+  Comptes → Autres utilisateurs → Configurer un kiosque).
 
 ## 4. Exploitation
 
