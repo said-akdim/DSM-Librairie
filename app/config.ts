@@ -18,4 +18,10 @@ export const WS_URL = Platform.OS === "web"
 
 export const ODOO_DB = "agora-prod";
 
-export default { ODOO_URL, WS_URL, ODOO_DB };
+/* Compte de service Odoo (borne de prix, caisse).
+   À définir dans .env : EXPO_PUBLIC_ODOO_LOGIN / EXPO_PUBLIC_ODOO_PASSWORD
+   Prévoir un utilisateur Odoo en lecture seule pour la borne en libre-service. */
+export const ODOO_LOGIN = process.env.EXPO_PUBLIC_ODOO_LOGIN || "admin";
+export const ODOO_PASSWORD = process.env.EXPO_PUBLIC_ODOO_PASSWORD || "admin";
+
+export default { ODOO_URL, WS_URL, ODOO_DB, ODOO_LOGIN, ODOO_PASSWORD };

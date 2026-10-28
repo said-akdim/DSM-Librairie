@@ -1,7 +1,7 @@
 /* ══════════════════════════════════════
    BORNE DE PRIX — DSM Librairie
-   Scan d'un code-barres → nom + prix en grand
-   Odoo 18 (product.product / product.template)
+   Écran libre-service : scan d'un code-barres → nom + prix en grand
+   Connexion Odoo 18 : voir app/odoo18.ts
 ══════════════════════════════════════ */
 
 import { CameraView, useCameraPermissions } from "expo-camera";
@@ -16,101 +16,42 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { ODOO_DB, ODOO_URL } from "./config";
+import { ODOO_DB } from "./config";
+import {
+  ArticleOdoo,
+  EtatConnexion,
+  chercherArticleParCode,
+  connecter,
+  etatConnexion,
+  onEtatConnexion,
+  sessionCourante,
+} from "./odoo18";
 
-/* Durée d'affichage du résultat avant retour à l'écran d'accueil */
+/* Durée d'affichage du résultat avant retour à l'écran d'attente */
 const DELAI_RETOUR_MS = 10000;
 /* Anti-rebond : même code ignoré pendant ce délai */
 const ANTI_REBOND_MS = 2000;
 
-let borneCookies = "";
+const COULEUR_VOYANT: Record<EtatConnexion, string> = {
+  connecte: "#27AE60",
+  connexion: "#F5A623",
+  erreur: "#E74C3C",
+  deconnecte: "#8AAABF",
+};
 
-/* ── Types ── */
-export interface PrixProduit {
-  id: number;
-  name: string;
-  prix: number;
-  code: string;
+/** Message affiché au client : jamais l'erreur technique brute. */
+function messagePublic(code?: string) {
+  if (code === "acces" || code === "auth") return "Borne non autorisée — prévenez un libraire";
+  if (code === "timeout") return "Le serveur met trop de temps à répondre";
+  return "Connexion au serveur interrompue — demandez le prix à un libraire";
 }
 
-/* ── Session Odoo (lecture seule, compte caisse) ── */
-async function borneAuthAdmin(): Promise<boolean> {
-  try {
-    const res = await fetch(`${ODOO_URL}/web/session/authenticate`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      credentials: "include",
-      body: JSON.stringify({
-        jsonrpc: "2.0", method: "call", id: 1,
-        params: { db: ODOO_DB, login: "admin", password: "admin" },
-      }),
-    });
-    const data = await res.json();
-    if (data.result?.uid) { borneCookies = res.headers.get("set-cookie") || ""; return true; }
-    return false;
-  } catch { return false; }
+function horodatage(d: Date) {
+  const n = (v: number) => String(v).padStart(2, "0");
+  return `${n(d.getDate())}/${n(d.getMonth() + 1)}/${d.getFullYear()} ${n(d.getHours())}:${n(d.getMinutes())}:${n(d.getSeconds())}`;
 }
 
-async function borneCall(model: string, method: string, args: any[], kwargs: any = {}): Promise<any> {
-  try {
-    const res = await fetch(`${ODOO_URL}/web/dataset/call_kw`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        ...(borneCookies ? { Cookie: borneCookies } : {}),
-      },
-      credentials: "include",
-      body: JSON.stringify({
-        jsonrpc: "2.0", method: "call", id: Date.now(),
-        params: { model, method, args, kwargs },
-      }),
-    });
-    const data = await res.json();
-    return data.result || null;
-  } catch { return null; }
-}
-
-/**
- * Cherche un article par code-barres (ou référence interne / ISBN).
- * Variante d'abord (product.product), puis article modèle (product.template).
- */
-export async function chercherPrixParCode(code: string): Promise<PrixProduit | null> {
-  const terme = code.trim();
-  if (!terme) return null;
-
-  await borneAuthAdmin();
-  const domain = ["|", ["barcode", "=", terme], ["default_code", "=", terme]];
-
-  const variantes = await borneCall("product.product", "search_read", [domain],
-    { fields: ["name", "lst_price", "list_price", "barcode", "default_code"], limit: 1 }
-  );
-  const v = variantes?.[0];
-  if (v) {
-    return {
-      id: v.id,
-      name: v.name,
-      prix: v.lst_price ?? v.list_price ?? 0,
-      code: v.barcode || v.default_code || terme,
-    };
-  }
-
-  const modeles = await borneCall("product.template", "search_read", [domain],
-    { fields: ["name", "list_price", "barcode", "default_code"], limit: 1 }
-  );
-  const m = modeles?.[0];
-  if (m) {
-    return {
-      id: m.id,
-      name: m.name,
-      prix: m.list_price ?? 0,
-      code: m.barcode || m.default_code || terme,
-    };
-  }
-
-  return null;
-}
-
-/* ── Code-barres décoratif (écran d'accueil) ── */
+/* ── Code-barres décoratif (écran d'attente) ── */
 function CodeBarresDeco({ chiffres }: { chiffres: string }) {
   const barres = Array.from({ length: 44 }, (_, i) => {
     const n = (i * 7 + chiffres.charCodeAt(i % chiffres.length)) % 5;
@@ -128,25 +69,59 @@ function CodeBarresDeco({ chiffres }: { chiffres: string }) {
   );
 }
 
+/* ── Logo DSM ── */
+function LogoDSM({ compact }: { compact?: boolean }) {
+  return (
+    <View style={[st.logo, compact && { gap: 6 }]}>
+      <View style={[st.logoBox, compact && { width: 26, height: 26, borderRadius: 8 }]}>
+        <Text style={{ fontSize: compact ? 14 : 18 }}>📚</Text>
+      </View>
+      <View>
+        <Text style={[st.logoDSM, compact && { fontSize: 15, letterSpacing: 3 }]}>DSM</Text>
+        <Text style={st.logoSous}>CULTURE · PAPETERIE · LOISIRS</Text>
+      </View>
+    </View>
+  );
+}
+
 export default function BornePrix() {
   const [permission, requestPermission] = useCameraPermissions();
-  const [phase, setPhase] = useState<"accueil" | "recherche" | "trouve" | "introuvable">("accueil");
-  const [produit, setProduit] = useState<PrixProduit | null>(null);
+  const [phase, setPhase] = useState<"attente" | "recherche" | "trouve" | "introuvable" | "panne">("attente");
+  const [article, setArticle] = useState<ArticleOdoo | null>(null);
   const [codeIntrouvable, setCodeIntrouvable] = useState("");
+  const [messagePanne, setMessagePanne] = useState("");
   const [saisie, setSaisie] = useState("");
   const [camera, setCamera] = useState(Platform.OS !== "web");
+  const [etat, setEtat] = useState<EtatConnexion>(etatConnexion());
+  const [version, setVersion] = useState(sessionCourante().version);
+  const [heure, setHeure] = useState("");
 
   const dernierScan = useRef<{ code: string; at: number }>({ code: "", at: 0 });
   const timerRetour = useRef<ReturnType<typeof setTimeout> | null>(null);
   const champDouchette = useRef<TextInput>(null);
 
-  const retourAccueil = useCallback(() => {
+  /* Connexion Odoo au démarrage + voyant d'état */
+  useEffect(() => {
+    const desabonner = onEtatConnexion((e, s) => { setEtat(e); setVersion(s.version); });
+    connecter().catch(() => { /* le voyant passe au rouge */ });
+    return desabonner;
+  }, []);
+
+  /* Horloge de la barre technique */
+  useEffect(() => {
+    setHeure(horodatage(new Date()));
+    const t = setInterval(() => setHeure(horodatage(new Date())), 1000);
+    return () => clearInterval(t);
+  }, []);
+
+  const retourAttente = useCallback(() => {
     if (timerRetour.current) clearTimeout(timerRetour.current);
     timerRetour.current = null;
-    setProduit(null);
+    setArticle(null);
     setCodeIntrouvable("");
+    setMessagePanne("");
     setSaisie("");
-    setPhase("accueil");
+    setPhase("attente");
   }, []);
 
   const traiterCode = useCallback(async (code: string) => {
@@ -162,18 +137,23 @@ export default function BornePrix() {
     setSaisie("");
     setPhase("recherche");
 
-    const trouve = await chercherPrixParCode(terme);
-    if (trouve) {
-      if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
-      setProduit(trouve);
-      setPhase("trouve");
-    } else {
-      if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error).catch(() => {});
-      setCodeIntrouvable(terme);
-      setPhase("introuvable");
+    try {
+      const trouve = await chercherArticleParCode(terme);
+      if (trouve) {
+        if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+        setArticle(trouve);
+        setPhase("trouve");
+      } else {
+        if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error).catch(() => {});
+        setCodeIntrouvable(terme);
+        setPhase("introuvable");
+      }
+    } catch (e: any) {
+      setMessagePanne(messagePublic(e?.code));
+      setPhase("panne");
     }
-    timerRetour.current = setTimeout(retourAccueil, DELAI_RETOUR_MS);
-  }, [retourAccueil]);
+    timerRetour.current = setTimeout(retourAttente, DELAI_RETOUR_MS);
+  }, [retourAttente]);
 
   /* Caméra : demander l'autorisation au montage */
   useEffect(() => {
@@ -189,17 +169,7 @@ export default function BornePrix() {
 
   useEffect(() => () => { if (timerRetour.current) clearTimeout(timerRetour.current); }, []);
 
-  const enTete = (
-    <View style={st.enTete}>
-      <View style={st.logoBox}><Text style={st.logoEmoji}>📚</Text></View>
-      <View>
-        <Text style={st.logoDSM}>DSM</Text>
-        <Text style={st.logoSous}>LIBRAIRIE</Text>
-      </View>
-    </View>
-  );
-
-  /* Champ invisible qui capte la douchette (clavier virtuel) */
+  /* Champ invisible qui capte la douchette (clavier) */
   const champInvisible = !camera ? (
     <TextInput
       ref={champDouchette}
@@ -217,71 +187,98 @@ export default function BornePrix() {
   return (
     <View style={st.ecran}>
       <View style={st.cadre}>
-        {champInvisible}
+        <View style={st.cadreInterieur}>
+          {champInvisible}
 
-        {phase === "accueil" && (
-          <View style={st.centre}>
-            <Text style={st.titre}>BORNE DE PRIX</Text>
-            <Text style={st.sousTitre}>Scannez pour afficher le prix</Text>
+          {phase === "attente" && (
+            <View style={st.centre}>
+              <Text style={st.titre}>BORNE DE PRIX</Text>
+              <Text style={st.sousTitre}>Scannez pour afficher le prix</Text>
 
-            {camera ? (
-              <View style={st.viseur}>
-                {permission?.granted ? (
-                  <CameraView
-                    style={{ flex: 1 }}
-                    onBarcodeScanned={({ data }) => traiterCode(data)}
-                    barcodeScannerSettings={{
-                      barcodeTypes: ["ean13", "ean8", "upc_a", "upc_e", "code128", "code39", "qr"],
-                    }}
-                  />
-                ) : (
-                  <TouchableOpacity style={st.viseurVide} onPress={requestPermission}>
-                    <Text style={{ fontSize: 34, marginBottom: 8 }}>📷</Text>
-                    <Text style={st.viseurVideTxt}>Autoriser la caméra</Text>
-                  </TouchableOpacity>
-                )}
-              </View>
-            ) : (
-              <CodeBarresDeco chiffres="6583 3254" />
-            )}
+              {camera ? (
+                <View style={st.viseur}>
+                  {permission?.granted ? (
+                    <CameraView
+                      style={{ flex: 1 }}
+                      onBarcodeScanned={({ data }) => traiterCode(data)}
+                      barcodeScannerSettings={{
+                        barcodeTypes: ["ean13", "ean8", "upc_a", "upc_e", "code128", "code39", "qr"],
+                      }}
+                    />
+                  ) : (
+                    <TouchableOpacity style={st.viseurVide} onPress={requestPermission}>
+                      <Text style={{ fontSize: 34, marginBottom: 8 }}>📷</Text>
+                      <Text style={st.viseurVideTxt}>Autoriser la caméra</Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
+              ) : (
+                <CodeBarresDeco chiffres="6583 3254" />
+              )}
 
-            <Text style={st.fleches}>⬇︎  ⬇︎</Text>
-            <Text style={st.consigne}>Présentez le code-barres de l&apos;article</Text>
-          </View>
-        )}
+              <Text style={st.fleches}>⬇︎  ⬇︎</Text>
+              <Text style={st.consigne}>Présentez le code-barres de l&apos;article</Text>
+            </View>
+          )}
 
-        {phase === "recherche" && (
-          <View style={st.centre}>
-            {enTete}
-            <ActivityIndicator size="large" color="#1A6FFF" style={{ marginTop: 28 }} />
-            <Text style={st.consigne}>Recherche du prix…</Text>
-          </View>
-        )}
+          {phase === "recherche" && (
+            <View style={st.centre}>
+              <LogoDSM />
+              <ActivityIndicator size="large" color="#1A6FFF" style={{ marginTop: 28 }} />
+              <Text style={st.consigne}>Recherche du prix…</Text>
+            </View>
+          )}
 
-        {phase === "trouve" && produit && (
-          <TouchableOpacity activeOpacity={1} style={st.centre} onPress={retourAccueil}>
-            {enTete}
-            <Text style={st.nomProduit} numberOfLines={3} adjustsFontSizeToFit>{produit.name}</Text>
-            <Text style={st.prix}>{produit.prix.toFixed(2)} DH</Text>
-            <Text style={st.codeProduit}>{produit.code}</Text>
-          </TouchableOpacity>
-        )}
+          {phase === "trouve" && article && (
+            <TouchableOpacity activeOpacity={1} style={st.centre} onPress={retourAttente}>
+              <LogoDSM />
+              <Text style={st.nomArticle} numberOfLines={3} adjustsFontSizeToFit>{article.nom}</Text>
+              <Text style={st.prix}>{article.prixTTC.toFixed(2)} DH</Text>
+              {article.tauxTVA > 0 && (
+                <Text style={st.prixDetail}>TTC · {article.prixHT.toFixed(2)} DH HT + TVA {article.tauxTVA}%</Text>
+              )}
+              {!!article.editeur && <Text style={st.editeur}>{article.editeur}</Text>}
+              <Text style={st.codeArticle}>{article.codeBarre || article.reference}</Text>
+            </TouchableOpacity>
+          )}
 
-        {phase === "introuvable" && (
-          <TouchableOpacity activeOpacity={1} style={st.centre} onPress={retourAccueil}>
-            {enTete}
-            <Text style={st.erreurEmoji}>❓</Text>
-            <Text style={st.erreurTitre}>Article non reconnu</Text>
-            <Text style={st.erreurCode}>{codeIntrouvable}</Text>
-            <Text style={st.consigne}>Demandez le prix à un libraire</Text>
-          </TouchableOpacity>
-        )}
+          {phase === "introuvable" && (
+            <TouchableOpacity activeOpacity={1} style={st.centre} onPress={retourAttente}>
+              <LogoDSM />
+              <Text style={st.erreurEmoji}>❓</Text>
+              <Text style={st.erreurTitre}>Article non reconnu</Text>
+              <Text style={st.erreurCode}>{codeIntrouvable}</Text>
+              <Text style={st.consigne}>Demandez le prix à un libraire</Text>
+            </TouchableOpacity>
+          )}
+
+          {phase === "panne" && (
+            <TouchableOpacity activeOpacity={1} style={st.centre} onPress={retourAttente}>
+              <LogoDSM />
+              <Text style={st.erreurEmoji}>⚠️</Text>
+              <Text style={st.erreurTitre}>Borne momentanément indisponible</Text>
+              <Text style={st.consigne}>{messagePanne}</Text>
+            </TouchableOpacity>
+          )}
+
+          {/* Logo en bas à gauche, comme sur une borne magasin */}
+          {phase === "attente" && (
+            <View style={st.logoCoin}><LogoDSM compact /></View>
+          )}
+        </View>
       </View>
 
-      {/* Barre technique discrète (personnel magasin) */}
+      {/* Barre technique (personnel magasin) */}
       <View style={st.barreTech}>
-        <Text style={st.techTxt}>DIRECTE · {ODOO_DB}</Text>
-        <TouchableOpacity onPress={() => { setCamera(c => !c); retourAccueil(); }}>
+        <Text style={st.techTxt}>{heure}</Text>
+        <View style={st.techCentre}>
+          <View style={[st.voyant, { backgroundColor: COULEUR_VOYANT[etat] }]} />
+          <Text style={st.techTxt}>
+            {etat === "connecte" ? "DIRECTE" : etat === "connexion" ? "CONNEXION…" : etat === "erreur" ? "HORS LIGNE" : "ARRÊT"}
+            {" · "}{ODOO_DB}{version ? ` · Odoo ${version}` : ""}
+          </Text>
+        </View>
+        <TouchableOpacity onPress={() => { setCamera(c => !c); retourAttente(); }}>
           <Text style={st.techBtn}>{camera ? "📷 Caméra" : "⌨︎ Douchette"}</Text>
         </TouchableOpacity>
       </View>
@@ -293,19 +290,25 @@ const st = StyleSheet.create({
   ecran: { flex: 1, backgroundColor: "#05102A", padding: 10 },
   cadre: {
     flex: 1,
-    backgroundColor: "#F7FAFF",
+    backgroundColor: "#F5A623",
     borderRadius: 10,
-    borderWidth: 10,
-    borderColor: "#F5A623",
+    padding: 10,
+  },
+  cadreInterieur: {
+    flex: 1,
+    backgroundColor: "#F7FAFF",
+    borderRadius: 4,
+    borderWidth: 2,
+    borderColor: "#FFD080",
     overflow: "hidden",
   },
   centre: { flex: 1, alignItems: "center", justifyContent: "center", padding: 20 },
 
-  enTete: { flexDirection: "row", alignItems: "center", gap: 10, marginBottom: 10 },
+  logo: { flexDirection: "row", alignItems: "center", gap: 10 },
   logoBox: { width: 34, height: 34, borderRadius: 10, backgroundColor: "#1A6FFF", alignItems: "center", justifyContent: "center" },
-  logoEmoji: { fontSize: 18 },
   logoDSM: { fontSize: 20, color: "#05102A", fontWeight: "bold", letterSpacing: 4 },
-  logoSous: { fontSize: 8, color: "#8AAABF", letterSpacing: 3 },
+  logoSous: { fontSize: 7, color: "#8AAABF", letterSpacing: 2 },
+  logoCoin: { position: "absolute", left: 16, bottom: 14 },
 
   titre: { fontSize: 34, fontWeight: "bold", color: "#05102A", letterSpacing: 2, textAlign: "center" },
   sousTitre: { fontSize: 18, fontWeight: "600", color: "#05102A", marginTop: 8, marginBottom: 22, textAlign: "center" },
@@ -321,9 +324,11 @@ const st = StyleSheet.create({
   fleches: { fontSize: 36, color: "#E74C3C", marginTop: 14, letterSpacing: 10 },
   consigne: { fontSize: 14, color: "#8AAABF", marginTop: 10, textAlign: "center" },
 
-  nomProduit: { fontSize: 38, fontWeight: "bold", color: "#05102A", textAlign: "center", marginTop: 18, lineHeight: 46 },
+  nomArticle: { fontSize: 38, fontWeight: "bold", color: "#05102A", textAlign: "center", marginTop: 18, lineHeight: 46 },
   prix: { fontSize: 72, fontWeight: "bold", color: "#05102A", marginTop: 18 },
-  codeProduit: { fontSize: 13, color: "#8AAABF", letterSpacing: 3, marginTop: 14 },
+  prixDetail: { fontSize: 13, color: "#8AAABF", marginTop: 6 },
+  editeur: { fontSize: 15, color: "#1A6FFF", marginTop: 10 },
+  codeArticle: { fontSize: 13, color: "#8AAABF", letterSpacing: 3, marginTop: 14 },
 
   erreurEmoji: { fontSize: 56, marginTop: 20 },
   erreurTitre: { fontSize: 30, fontWeight: "bold", color: "#05102A", marginTop: 12, textAlign: "center" },
@@ -331,7 +336,9 @@ const st = StyleSheet.create({
 
   champInvisible: { position: "absolute", opacity: 0, height: 1, width: 1 },
 
-  barreTech: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 8, paddingTop: 8 },
+  barreTech: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 8, paddingTop: 8, gap: 10 },
+  techCentre: { flexDirection: "row", alignItems: "center", gap: 6, flexShrink: 1 },
+  voyant: { width: 8, height: 8, borderRadius: 4 },
   techTxt: { fontSize: 10, color: "rgba(255,255,255,0.35)", letterSpacing: 1 },
   techBtn: { fontSize: 11, color: "#FFD080", fontWeight: "bold" },
 });
