@@ -16,6 +16,7 @@ import {
   View,
 } from "react-native";
 import QRCode from "react-native-qrcode-svg";
+import BornePrix from "./borne";
 import Caisse from "./caisse";
 import {
   EcranValidationCommande,
@@ -1118,6 +1119,7 @@ export default function App() {
       {onglet === "notifs" && <OngletNotifs client={client} />}
       {onglet === "profil" && <OngletProfil client={client} onDeconnexion={() => { setClient(null); wsDisconnect(); }} wsOk={wsOk} />}
       {onglet === "caisse" && <Caisse />}
+      {onglet === "borne" && <BornePrix />}
       {onglet === "coups_coeur" && <OngletCoupsCoeur client={client} livres={LIVRES_FALLBACK} onAjouterPanier={(l: any) => { }} />}
       {onglet === "bons" && <OngletBonsReduction client={client} />}
       {onglet === "commandes" && <OngletSuiviCommandes client={client} />}
@@ -1138,6 +1140,7 @@ export default function App() {
             { id: "scolaires", icon: "🎒", label: "Listes scolaires", desc: "Rentrée 2025-2026" },
             { id: "promotions", icon: "🔥", label: "Promotions", desc: "Offres du moment" },
             { id: "mon_compte", icon: "👤", label: "Mon compte", desc: "Adresse, livraison" },
+            { id: "borne", icon: "🏷️", label: "Borne de prix", desc: "Scannez, le prix s'affiche" },
           ].map((item, i) => (
             <TouchableOpacity key={i} onPress={() => setOnglet(item.id)} style={{ flexDirection: "row", alignItems: "center", backgroundColor: "#fff", marginHorizontal: 16, marginBottom: 10, borderRadius: 18, padding: 18, gap: 14 }}>
               <View style={{ width: 48, height: 48, borderRadius: 14, backgroundColor: "#EAF2FF", alignItems: "center", justifyContent: "center" }}>
