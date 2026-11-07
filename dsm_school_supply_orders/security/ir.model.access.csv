@@ -9,3 +9,7 @@ access_liste_scolaire_manager,dsm.liste.scolaire manager,model_dsm_liste_scolair
 access_liste_scolaire_user,dsm.liste.scolaire user,model_dsm_liste_scolaire,purchase.group_purchase_user,1,1,1,1
 access_titre_adopte_manager,dsm.titre.adopte manager,model_dsm_titre_adopte,purchase.group_purchase_manager,1,1,1,1
 access_titre_adopte_user,dsm.titre.adopte user,model_dsm_titre_adopte,purchase.group_purchase_user,1,1,1,1
+access_commande_scolaire_manager,dsm.commande.scolaire manager,model_dsm_commande_scolaire,purchase.group_purchase_manager,1,1,1,1
+access_commande_scolaire_user,dsm.commande.scolaire user,model_dsm_commande_scolaire,purchase.group_purchase_user,1,1,1,1
+access_commande_scolaire_ligne_manager,dsm.commande.scolaire.ligne manager,model_dsm_commande_scolaire_ligne,purchase.group_purchase_manager,1,1,1,1
+access_commande_scolaire_ligne_user,dsm.commande.scolaire.ligne user,model_dsm_commande_scolaire_ligne,purchase.group_purchase_user,1,1,1,1

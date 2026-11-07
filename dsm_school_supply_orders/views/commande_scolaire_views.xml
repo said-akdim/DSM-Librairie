@@ -1,0 +1,305 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!-- ═══════════════════════════════════════════════════════════════
+         Commande scolaire — Vue liste
+    ════════════════════════════════════════════════════════════════════ -->
+    <record id="view_commande_scolaire_list" model="ir.ui.view">
+        <field name="name">dsm.commande.scolaire.list</field>
+        <field name="model">dsm.commande.scolaire</field>
+        <field name="arch" type="xml">
+            <list string="Commandes scolaires"
+                  decoration-muted="state == 'annulee'"
+                  decoration-info="state == 'en_traitement'"
+                  decoration-success="state == 'terminee'">
+                <field name="name"/>
+                <field name="partner_id"/>
+                <field name="eleve_nom" optional="show"/>
+                <field name="ecole_nom" optional="show"/>
+                <field name="annee_scolaire"/>
+                <field name="date_commande"/>
+                <field name="ligne_count" string="Lignes"/>
+                <field name="nb_restant" string="Restant"/>
+                <field name="progression" widget="progressbar"/>
+                <field name="state" widget="badge"
+                       decoration-info="state == 'en_traitement'"
+                       decoration-success="state == 'terminee'"
+                       decoration-danger="state == 'annulee'"/>
+            </list>
+        </field>
+    </record>
+
+    <!-- ═══════════════════════════════════════════════════════════════
+         Commande scolaire — Vue formulaire
+    ════════════════════════════════════════════════════════════════════ -->
+    <record id="view_commande_scolaire_form" model="ir.ui.view">
+        <field name="name">dsm.commande.scolaire.form</field>
+        <field name="model">dsm.commande.scolaire</field>
+        <field name="arch" type="xml">
+            <form string="Commande scolaire">
+                <header>
+                    <button name="action_confirmer" type="object"
+                            string="▶ Confirmer / Traiter"
+                            class="btn-primary"
+                            invisible="state != 'brouillon'"/>
+                    <button name="action_charger_liste" type="object"
+                            string="📋 Charger la liste"
+                            invisible="state == 'terminee' or not liste_id"/>
+                    <button name="action_recompute_stock" type="object"
+                            string="🔄 Recalculer le stock"
+                            invisible="state in ('brouillon', 'annulee')"/>
+                    <button name="action_creer_bons_commande" type="object"
+                            string="📦 Créer bons de commande"
+                            class="btn-primary"
+                            invisible="state != 'en_traitement'"/>
+                    <button name="action_terminer" type="object"
+                            string="✅ Terminer"
+                            class="btn-primary"
+                            invisible="state != 'en_traitement'"/>
+                    <button name="action_annuler" type="object"
+                            string="Annuler"
+                            invisible="state in ('terminee', 'annulee')"/>
+                    <button name="action_remettre_brouillon" type="object"
+                            string="Remettre en brouillon"
+                            invisible="state == 'brouillon'"/>
+                    <field name="state" widget="statusbar"
+                           statusbar_visible="brouillon,en_traitement,terminee"/>
+                </header>
+
+                <sheet>
+                    <div class="oe_button_box" name="button_box">
+                        <button class="oe_stat_button" type="object"
+                                name="action_view_lignes_traitement"
+                                icon="fa-tasks">
+                            <field name="nb_restant" widget="statinfo"
+                                   string="Lignes restantes"/>
+                        </button>
+                        <button class="oe_stat_button" type="object"
+                                name="action_view_purchase_orders"
+                                icon="fa-shopping-cart"
+                                invisible="po_count == 0">
+                            <field name="po_count" widget="statinfo"
+                                   string="Bons de commande"/>
+                        </button>
+                    </div>
+
+                    <div class="oe_title">
+                        <h1><field name="name" readonly="1"/></h1>
+                    </div>
+
+                    <group>
+                        <group string="Client">
+                            <field name="partner_id"/>
+                            <field name="eleve_nom"/>
+                            <field name="classe"/>
+                        </group>
+                        <group string="Scolarité">
+                            <field name="liste_id"/>
+                            <field name="ecole_nom" readonly="1"/>
+                            <field name="annee_scolaire"/>
+                            <field name="date_commande"/>
+                        </group>
+                    </group>
+
+                    <notebook>
+                        <page string="Lignes / Traitement" name="lignes">
+                            <field name="ligne_ids">
+                                <list editable="bottom"
+                                      decoration-success="traitement == 'termine'"
+                                      decoration-info="traitement == 'disponible'"
+                                      decoration-warning="traitement == 'a_commander'"
+                                      decoration-primary="traitement == 'en_commande'"
+                                      decoration-muted="traitement == 'reserve'">
+                                    <field name="product_id" options="{'no_create': True}"/>
+                                    <field name="editeur" readonly="1" optional="show"/>
+                                    <field name="distributeur_id"/>
+                                    <field name="qty" string="Qté"/>
+                                    <field name="qty_disponible" readonly="1"
+                                           string="Dispo" sum="Total dispo"/>
+                                    <field name="qty_a_commander"
+                                           string="À commander" sum="Total à cmd"/>
+                                    <field name="prix_achat" string="Prix achat"
+                                           optional="show"/>
+                                    <field name="traitement" widget="badge"
+                                           decoration-success="traitement == 'termine'"
+                                           decoration-info="traitement == 'disponible'"
+                                           decoration-warning="traitement == 'a_commander'"/>
+                                    <field name="po_id" readonly="1" optional="show"/>
+                                    <field name="note" optional="hide"/>
+                                    <button name="action_commander_ligne"
+                                            type="object" string="Commander"
+                                            icon="fa-shopping-cart"
+                                            class="btn-sm"
+                                            invisible="traitement in ('en_commande', 'termine')"
+                                            title="Créer un bon de commande fournisseur"/>
+                                    <button name="action_statut_reserve"
+                                            type="object" string="Réserver"
+                                            icon="fa-bookmark" class="btn-sm"
+                                            invisible="traitement == 'termine'"
+                                            title="Réserver pour le client"/>
+                                    <button name="action_statut_termine"
+                                            type="object" string="Terminer"
+                                            icon="fa-check" class="btn-sm"
+                                            invisible="traitement == 'termine'"
+                                            title="Marquer la ligne comme terminée"/>
+                                </list>
+                            </field>
+                        </page>
+                        <page string="Notes" name="notes">
+                            <field name="notes" placeholder="Notes internes…"/>
+                        </page>
+                    </notebook>
+                </sheet>
+                <chatter/>
+            </form>
+        </field>
+    </record>
+
+    <!-- ═══════════════════════════════════════════════════════════════
+         Ligne de commande — Kanban de traitement
+    ════════════════════════════════════════════════════════════════════ -->
+    <record id="view_commande_scolaire_ligne_kanban" model="ir.ui.view">
+        <field name="name">dsm.commande.scolaire.ligne.kanban</field>
+        <field name="model">dsm.commande.scolaire.ligne</field>
+        <field name="arch" type="xml">
+            <kanban default_group_by="traitement"
+                    group_create="false" group_delete="false"
+                    class="o_kanban_small_column">
+                <field name="traitement"/>
+                <field name="commande_id"/>
+                <field name="partner_id"/>
+                <field name="qty"/>
+                <field name="qty_a_commander"/>
+                <field name="distributeur_id"/>
+                <field name="po_id"/>
+                <templates>
+                    <t t-name="card">
+                        <div class="oe_kanban_global_click">
+                            <div class="o_kanban_record_title">
+                                <strong><field name="product_id"/></strong>
+                            </div>
+                            <div class="o_kanban_record_subtitle text-muted">
+                                <field name="commande_id"/> ·
+                                <field name="partner_id"/>
+                            </div>
+                            <div>
+                                Qté : <field name="qty"/>
+                                <t t-if="record.qty_a_commander.raw_value &gt; 0">
+                                    · À cmd : <field name="qty_a_commander"/>
+                                </t>
+                            </div>
+                            <div t-if="record.distributeur_id.raw_value" class="text-muted">
+                                <i class="fa fa-truck"/> <field name="distributeur_id"/>
+                            </div>
+                            <div t-if="record.po_id.raw_value">
+                                <span class="badge text-bg-primary">
+                                    <field name="po_id"/>
+                                </span>
+                            </div>
+                        </div>
+                    </t>
+                </templates>
+            </kanban>
+        </field>
+    </record>
+
+    <!-- Ligne de commande — Vue liste (pour le traitement global) -->
+    <record id="view_commande_scolaire_ligne_list" model="ir.ui.view">
+        <field name="name">dsm.commande.scolaire.ligne.list</field>
+        <field name="model">dsm.commande.scolaire.ligne</field>
+        <field name="arch" type="xml">
+            <list string="Lignes à traiter" editable="bottom"
+                  decoration-success="traitement == 'termine'"
+                  decoration-warning="traitement == 'a_commander'"
+                  decoration-info="traitement == 'disponible'">
+                <field name="commande_id"/>
+                <field name="partner_id"/>
+                <field name="product_id"/>
+                <field name="distributeur_id"/>
+                <field name="qty"/>
+                <field name="qty_disponible" readonly="1"/>
+                <field name="qty_a_commander"/>
+                <field name="traitement" widget="badge"/>
+                <field name="po_id" readonly="1" optional="show"/>
+                <button name="action_commander_ligne" type="object"
+                        string="Commander" icon="fa-shopping-cart" class="btn-sm"
+                        invisible="traitement in ('en_commande', 'termine')"/>
+                <button name="action_statut_termine" type="object"
+                        string="Terminer" icon="fa-check" class="btn-sm"
+                        invisible="traitement == 'termine'"/>
+            </list>
+        </field>
+    </record>
+
+    <!-- Recherche / regroupement -->
+    <record id="view_commande_scolaire_ligne_search" model="ir.ui.view">
+        <field name="name">dsm.commande.scolaire.ligne.search</field>
+        <field name="model">dsm.commande.scolaire.ligne</field>
+        <field name="arch" type="xml">
+            <search>
+                <field name="product_id"/>
+                <field name="commande_id"/>
+                <field name="partner_id"/>
+                <field name="distributeur_id"/>
+                <filter name="f_a_traiter" string="À traiter"
+                        domain="[('traitement', '=', 'a_traiter')]"/>
+                <filter name="f_a_commander" string="À commander"
+                        domain="[('traitement', '=', 'a_commander')]"/>
+                <filter name="f_en_commande" string="En commande fournisseur"
+                        domain="[('traitement', '=', 'en_commande')]"/>
+                <filter name="f_reserve" string="Réservé"
+                        domain="[('traitement', '=', 'reserve')]"/>
+                <filter name="f_non_termine" string="Non terminé"
+                        domain="[('traitement', '!=', 'termine')]"/>
+                <separator/>
+                <group expand="0" string="Regrouper par">
+                    <filter name="group_traitement" string="Traitement"
+                            context="{'group_by': 'traitement'}"/>
+                    <filter name="group_commande" string="Commande"
+                            context="{'group_by': 'commande_id'}"/>
+                    <filter name="group_distributeur" string="Distributeur"
+                            context="{'group_by': 'distributeur_id'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <!-- ═══════════════════════════════════════════════════════════════
+         Actions
+    ════════════════════════════════════════════════════════════════════ -->
+    <record id="action_commande_scolaire" model="ir.actions.act_window">
+        <field name="name">Commandes scolaires</field>
+        <field name="res_model">dsm.commande.scolaire</field>
+        <field name="view_mode">list,form</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                Créer une nouvelle commande scolaire
+            </p>
+            <p>
+                Enregistrez la commande d'un client à partir d'une liste scolaire,
+                puis suivez chaque article : disponible en stock, à commander,
+                en commande fournisseur, réservé, puis terminé.
+            </p>
+        </field>
+    </record>
+
+    <record id="action_commande_scolaire_ligne" model="ir.actions.act_window">
+        <field name="name">Traitement des listes</field>
+        <field name="res_model">dsm.commande.scolaire.ligne</field>
+        <field name="view_mode">kanban,list,form</field>
+        <field name="search_view_id" ref="view_commande_scolaire_ligne_search"/>
+        <field name="context">{'search_default_f_non_termine': 1,
+                               'search_default_group_traitement': 1}</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                Aucune ligne à traiter
+            </p>
+            <p>
+                Ce tableau regroupe toutes les lignes de commandes scolaires par
+                statut de traitement. Glissez-déposez une carte pour changer son
+                statut.
+            </p>
+        </field>
+    </record>
+
+</odoo>

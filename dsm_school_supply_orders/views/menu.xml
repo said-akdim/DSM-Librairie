@@ -16,4 +16,16 @@
               parent="menu_school_supply_root"
               action="action_liste_scolaire"
               sequence="20"/>
+
+    <menuitem id="menu_commande_scolaire"
+              name="Commandes scolaires"
+              parent="menu_school_supply_root"
+              action="action_commande_scolaire"
+              sequence="30"/>
+
+    <menuitem id="menu_commande_scolaire_traitement"
+              name="Traitement des listes"
+              parent="menu_school_supply_root"
+              action="action_commande_scolaire_ligne"
+              sequence="40"/>
 </odoo>
