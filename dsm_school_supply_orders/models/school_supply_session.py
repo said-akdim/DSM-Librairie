@@ -68,18 +68,9 @@ class SchoolSupplySession(models.Model):
     def action_recompute_stock(self):
         """Rafraîchit le stock actuel depuis stock.quant pour toutes les lignes."""
         self.ensure_one()
-        product_ids = self.line_ids.filtered('product_id').mapped('product_id').ids
-        if not product_ids:
-            return
-        quants = self.env['stock.quant'].read_group(
-            [('product_id', 'in', product_ids), ('location_id.usage', '=', 'internal')],
-            ['product_id', 'quantity'],
-            ['product_id'],
-        )
-        stock_map = {q['product_id'][0]: q['quantity'] for q in quants}
         for line in self.line_ids:
             if line.product_id:
-                line.current_stock = stock_map.get(line.product_id.id, 0.0)
+                line.current_stock = line.product_id.qty_available
 
     def action_reset_adjusted_qty(self):
         """Réinitialise toutes les quantités ajustées = quantités estimées."""

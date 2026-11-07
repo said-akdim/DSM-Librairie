@@ -14,6 +14,9 @@ TRAITEMENT_STATES = [
     ('termine', 'Terminé'),
 ]
 
+# Statuts pour lesquels on NE libère PAS la réservation de stock.
+_KEEP_RESERVATION = ('reserve', 'termine')
+
 
 class CommandeScolaire(models.Model):
     _name = 'dsm.commande.scolaire'
@@ -45,6 +48,11 @@ class CommandeScolaire(models.Model):
     date_commande = fields.Date(
         'Date commande', default=fields.Date.context_today, tracking=True,
     )
+    warehouse_id = fields.Many2one(
+        'stock.warehouse', string='Entrepôt', required=True,
+        default=lambda self: self._default_warehouse(),
+        help="Entrepôt de référence pour le stock disponible et les réservations.",
+    )
 
     state = fields.Selection(
         [
@@ -65,6 +73,13 @@ class CommandeScolaire(models.Model):
         'dsm_commande_scolaire_po_rel', 'commande_id', 'po_id',
         string='Bons de commande', copy=False,
     )
+    picking_id = fields.Many2one(
+        'stock.picking', string='Bon de livraison (réservation)', copy=False,
+        help="Livraison client regroupant les articles réservés en stock.",
+    )
+    picking_state = fields.Selection(
+        related='picking_id.state', string='État livraison', readonly=True,
+    )
     notes = fields.Text('Notes')
 
     # ── Compteurs / indicateurs ─────────────────────────────────────────
@@ -73,6 +88,7 @@ class CommandeScolaire(models.Model):
     nb_a_traiter = fields.Integer('À traiter', compute='_compute_counts')
     nb_restant = fields.Integer('Restant', compute='_compute_counts')
     nb_termine = fields.Integer('Terminé', compute='_compute_counts')
+    nb_reserve = fields.Integer('Réservé', compute='_compute_counts')
     progression = fields.Float(
         'Progression (%)', compute='_compute_counts', digits=(16, 0),
         help="Pourcentage de lignes terminées.",
@@ -84,6 +100,11 @@ class CommandeScolaire(models.Model):
             return f"{today.year}-{today.year + 1}"
         return f"{today.year - 1}-{today.year}"
 
+    def _default_warehouse(self):
+        return self.env['stock.warehouse'].search(
+            [('company_id', '=', self.env.company.id)], limit=1
+        )
+
     @api.depends('ligne_ids', 'ligne_ids.traitement', 'po_ids')
     def _compute_counts(self):
         for rec in self:
@@ -93,6 +114,7 @@ class CommandeScolaire(models.Model):
             rec.ligne_count = total
             rec.po_count = len(rec.po_ids)
             rec.nb_a_traiter = len(lines.filtered(lambda l: l.traitement == 'a_traiter'))
+            rec.nb_reserve = len(lines.filtered(lambda l: l.traitement == 'reserve'))
             rec.nb_termine = termine
             rec.nb_restant = total - termine
             rec.progression = (termine / total * 100.0) if total else 0.0
@@ -156,6 +178,10 @@ class CommandeScolaire(models.Model):
         self.write({'state': 'terminee'})
 
     def action_annuler(self):
+        """Annule la commande et libère la réservation de stock."""
+        for rec in self:
+            if rec.picking_id and rec.picking_id.state not in ('done', 'cancel'):
+                rec.picking_id.action_cancel()
         self.write({'state': 'annulee'})
 
     def action_remettre_brouillon(self):
@@ -165,6 +191,57 @@ class CommandeScolaire(models.Model):
         self.ensure_one()
         self.ligne_ids._refresh_stock()
         self.ligne_ids._auto_statut()
+
+    # ── Réservation de stock (picking réel) ─────────────────────────────
+    def _get_reservation_picking(self):
+        """Retourne le bon de livraison de réservation, en le créant au besoin."""
+        self.ensure_one()
+        if self.picking_id and self.picking_id.state not in ('done', 'cancel'):
+            return self.picking_id
+        warehouse = self.warehouse_id or self._default_warehouse()
+        if not warehouse:
+            raise UserError(_("Aucun entrepôt n'est configuré pour cette société."))
+        picking_type = warehouse.out_type_id
+        if not picking_type:
+            raise UserError(_("L'entrepôt « %s » n'a pas de type d'opération de livraison.") % warehouse.display_name)
+        location = picking_type.default_location_src_id or warehouse.lot_stock_id
+        location_dest = (
+            self.partner_id.property_stock_customer
+            or self.env.ref('stock.stock_location_customers', raise_if_not_found=False)
+        )
+        if not location or not location_dest:
+            raise UserError(_("Emplacements source/destination introuvables pour la réservation."))
+        picking = self.env['stock.picking'].create({
+            'picking_type_id': picking_type.id,
+            'location_id': location.id,
+            'location_dest_id': location_dest.id,
+            'partner_id': self.partner_id.id,
+            'origin': self.name,
+        })
+        self.picking_id = picking.id
+        return picking
+
+    def action_valider_livraison(self):
+        """Valide le bon de livraison : la marchandise réservée sort du stock."""
+        self.ensure_one()
+        if not self.picking_id:
+            raise UserError(_("Aucun bon de livraison à valider (aucun article réservé)."))
+        if self.picking_id.state in ('done', 'cancel'):
+            raise UserError(_("Le bon de livraison est déjà terminé ou annulé."))
+        # button_validate peut renvoyer un assistant (reliquat, transfert immédiat).
+        return self.picking_id.button_validate()
+
+    def action_view_picking(self):
+        self.ensure_one()
+        if not self.picking_id:
+            raise UserError(_("Aucun bon de livraison associé."))
+        return {
+            'type': 'ir.actions.act_window',
+            'name': _('Bon de livraison'),
+            'res_model': 'stock.picking',
+            'view_mode': 'form',
+            'res_id': self.picking_id.id,
+        }
 
     # ── Génération des bons de commande fournisseur ─────────────────────
     def action_creer_bons_commande(self):
@@ -259,20 +336,43 @@ class CommandeScolaireLigne(models.Model):
         related='commande_id.state', store=True, string='État commande',
     )
 
-    product_id = fields.Many2one('product.product', string='Article', required=True)
+    product_id = fields.Many2one(
+        'product.product', string='Article', required=True,
+        domain="[('type', '!=', 'service')]",
+    )
     editeur = fields.Char('Éditeur', compute='_compute_editeur', store=True)
     distributeur_id = fields.Many2one('res.partner', string='Distributeur')
 
     qty = fields.Float('Qté demandée', digits=(16, 0), default=1.0, required=True)
 
-    qty_stock_reel = fields.Float('Stock réel', digits=(16, 2), readonly=True)
-    qty_reserved = fields.Float('Qté réservée (stock)', digits=(16, 2), readonly=True)
+    # Stock — chiffres officiels Odoo, scopés sur l'entrepôt de la commande.
+    qty_stock_reel = fields.Float(
+        'Stock physique', digits=(16, 2), readonly=True,
+        help="Quantité en main dans l'entrepôt (qty_available).",
+    )
+    qty_reserved = fields.Float(
+        'Réservé (stock)', digits=(16, 2), readonly=True,
+        help="Quantité déjà réservée dans l'entrepôt, toutes opérations confondues.",
+    )
     qty_disponible = fields.Float(
-        'Disponible', digits=(16, 2), compute='_compute_disponible', store=True,
+        'Disponible', digits=(16, 2), readonly=True,
+        help="Quantité libre, non réservée (free_qty).",
     )
     qty_a_commander = fields.Float(
         'Qté à commander', digits=(16, 0), compute='_compute_a_commander',
         store=True, readonly=False,
+    )
+
+    # Réservation propre à cette ligne (via son mouvement de stock).
+    move_id = fields.Many2one(
+        'stock.move', string='Mouvement de réservation', copy=False,
+    )
+    move_state = fields.Selection(
+        related='move_id.state', string='État réservation', readonly=True,
+    )
+    qty_reservee = fields.Float(
+        'Qté réservée (cette ligne)', digits=(16, 2),
+        compute='_compute_qty_reservee',
     )
 
     prix_achat = fields.Float('Prix achat HT', digits='Product Price')
@@ -296,15 +396,16 @@ class CommandeScolaireLigne(models.Model):
         for rec in self:
             rec.editeur = (getattr(rec.product_id, 'dsm_editeur', '') or '') if rec.product_id else ''
 
-    @api.depends('qty_stock_reel', 'qty_reserved')
-    def _compute_disponible(self):
-        for rec in self:
-            rec.qty_disponible = rec.qty_stock_reel - rec.qty_reserved
-
     @api.depends('qty', 'qty_disponible')
     def _compute_a_commander(self):
         for rec in self:
             rec.qty_a_commander = max(0.0, rec.qty - rec.qty_disponible)
+
+    @api.depends('move_id', 'move_id.state', 'move_id.quantity')
+    def _compute_qty_reservee(self):
+        for rec in self:
+            mv = rec.move_id
+            rec.qty_reservee = mv.quantity if (mv and mv.state not in ('cancel',)) else 0.0
 
     @api.onchange('product_id')
     def _onchange_product_id(self):
@@ -317,34 +418,29 @@ class CommandeScolaireLigne(models.Model):
         if sellers:
             self.distributeur_id = sellers[0].partner_id
             self.prix_achat = sellers[0].price
-        self._auto_statut()
 
-    # ── Stock ───────────────────────────────────────────────────────────
+    # ── Stock : lecture robuste via les champs officiels du produit ─────
     def _refresh_stock(self):
-        products = self.filtered('product_id').mapped('product_id')
-        if not products:
-            return
-        quants = self.env['stock.quant'].read_group(
-            [
-                ('product_id', 'in', products.ids),
-                ('location_id.usage', '=', 'internal'),
-            ],
-            ['product_id', 'quantity:sum', 'reserved_quantity:sum'],
-            ['product_id'],
-        )
-        stock_map = {
-            q['product_id'][0]: (q['quantity'], q['reserved_quantity'])
-            for q in quants
-        }
+        """Met à jour stock physique / réservé / disponible depuis les champs
+        standard du produit (qty_available, free_qty), scopés sur l'entrepôt de
+        la commande. Plus fiable qu'une lecture directe de stock.quant."""
         for rec in self:
-            if rec.product_id:
-                reel, reserved = stock_map.get(rec.product_id.id, (0.0, 0.0))
-                rec.qty_stock_reel = reel
-                rec.qty_reserved = reserved
+            if not rec.product_id:
+                rec.qty_stock_reel = rec.qty_reserved = rec.qty_disponible = 0.0
+                continue
+            product = rec.product_id
+            warehouse = rec.commande_id.warehouse_id
+            if warehouse:
+                product = product.with_context(warehouse=warehouse.id)
+            reel = product.qty_available
+            libre = product.free_qty
+            rec.qty_stock_reel = reel
+            rec.qty_disponible = libre
+            rec.qty_reserved = reel - libre
 
     def _auto_statut(self):
-        """Propose un statut selon la disponibilité (ne touche pas aux
-        lignes déjà réservées, en commande ou terminées)."""
+        """Propose un statut selon la disponibilité (ne touche pas aux lignes
+        déjà réservées, en commande ou terminées)."""
         for rec in self:
             if rec.traitement in ('reserve', 'en_commande', 'termine'):
                 continue
@@ -353,21 +449,65 @@ class CommandeScolaireLigne(models.Model):
             else:
                 rec.traitement = 'a_commander'
 
+    # ── Gestion du statut + libération de réservation ───────────────────
+    def _set_traitement(self, value):
+        """Change le statut et libère la réservation de stock si on quitte un
+        état « réservé/terminé » vers un état non abouti."""
+        for rec in self:
+            if rec.traitement in _KEEP_RESERVATION and value not in _KEEP_RESERVATION:
+                rec._liberer_reservation()
+            rec.traitement = value
+
+    def _liberer_reservation(self):
+        self.ensure_one()
+        if self.move_id and self.move_id.state not in ('done', 'cancel'):
+            self.move_id._action_cancel()
+
+    def _reserver(self):
+        """Réserve réellement la quantité demandée via un mouvement de stock."""
+        self.ensure_one()
+        if not self.product_id:
+            raise UserError(_("Aucun article sur cette ligne."))
+        if self.product_id.type == 'service':
+            raise UserError(_("Impossible de réserver un service : « %s »") % self.product_id.display_name)
+        if self.qty <= 0:
+            raise UserError(_("La quantité à réserver doit être supérieure à 0."))
+
+        picking = self.commande_id._get_reservation_picking()
+        if self.move_id and self.move_id.state not in ('done', 'cancel'):
+            move = self.move_id
+            move.product_uom_qty = self.qty
+        else:
+            move = self.env['stock.move'].create({
+                'name': self.product_id.display_name,
+                'product_id': self.product_id.id,
+                'product_uom_qty': self.qty,
+                'product_uom': self.product_id.uom_id.id,
+                'picking_id': picking.id,
+                'location_id': picking.location_id.id,
+                'location_dest_id': picking.location_dest_id.id,
+            })
+            self.move_id = move.id
+        picking.action_confirm()
+        picking.action_assign()
+        self.traitement = 'reserve'
+
     # ── Boutons de workflow par ligne ───────────────────────────────────
     def action_statut_disponible(self):
-        self.write({'traitement': 'disponible'})
+        self._set_traitement('disponible')
 
     def action_statut_a_commander(self):
-        self.write({'traitement': 'a_commander'})
+        self._set_traitement('a_commander')
 
-    def action_statut_reserve(self):
-        self.write({'traitement': 'reserve'})
+    def action_statut_a_traiter(self):
+        self._set_traitement('a_traiter')
 
     def action_statut_termine(self):
         self.write({'traitement': 'termine'})
 
-    def action_statut_a_traiter(self):
-        self.write({'traitement': 'a_traiter'})
+    def action_statut_reserve(self):
+        for rec in self:
+            rec._reserver()
 
     def action_commander_ligne(self):
         """Crée (ou complète) un bon de commande fournisseur pour cette ligne."""

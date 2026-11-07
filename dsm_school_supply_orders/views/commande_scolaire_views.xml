@@ -52,6 +52,10 @@
                             string="📦 Créer bons de commande"
                             class="btn-primary"
                             invisible="state != 'en_traitement'"/>
+                    <button name="action_valider_livraison" type="object"
+                            string="🚚 Valider la livraison"
+                            invisible="not picking_id or picking_state in ('done', 'cancel')"
+                            confirm="Valider le bon de livraison : la marchandise réservée va sortir du stock. Continuer ?"/>
                     <button name="action_terminer" type="object"
                             string="✅ Terminer"
                             class="btn-primary"
@@ -81,6 +85,13 @@
                             <field name="po_count" widget="statinfo"
                                    string="Bons de commande"/>
                         </button>
+                        <button class="oe_stat_button" type="object"
+                                name="action_view_picking"
+                                icon="fa-truck"
+                                invisible="not picking_id">
+                            <field name="nb_reserve" widget="statinfo"
+                                   string="Réservés"/>
+                        </button>
                     </div>
 
                     <div class="oe_title">
@@ -98,6 +109,9 @@
                             <field name="ecole_nom" readonly="1"/>
                             <field name="annee_scolaire"/>
                             <field name="date_commande"/>
+                            <field name="warehouse_id"
+                                   options="{'no_create': True}"/>
+                            <field name="picking_state" invisible="not picking_id"/>
                         </group>
                     </group>
 
@@ -114,8 +128,14 @@
                                     <field name="editeur" readonly="1" optional="show"/>
                                     <field name="distributeur_id"/>
                                     <field name="qty" string="Qté"/>
+                                    <field name="qty_stock_reel" readonly="1"
+                                           string="Stock" optional="show"/>
                                     <field name="qty_disponible" readonly="1"
                                            string="Dispo" sum="Total dispo"/>
+                                    <field name="qty_reservee" readonly="1"
+                                           string="Réservé" optional="show"/>
+                                    <field name="move_state" readonly="1"
+                                           string="Résa" optional="hide"/>
                                     <field name="qty_a_commander"
                                            string="À commander" sum="Total à cmd"/>
                                     <field name="prix_achat" string="Prix achat"
@@ -172,6 +192,8 @@
                 <field name="qty_a_commander"/>
                 <field name="distributeur_id"/>
                 <field name="po_id"/>
+                <field name="move_state"/>
+                <field name="qty_reservee"/>
                 <templates>
                     <t t-name="card">
                         <div class="oe_kanban_global_click">
@@ -194,6 +216,15 @@
                             <div t-if="record.po_id.raw_value">
                                 <span class="badge text-bg-primary">
                                     <field name="po_id"/>
+                                </span>
+                            </div>
+                            <div t-if="record.traitement.raw_value == 'reserve'">
+                                <span class="badge text-bg-success"
+                                      t-att-title="record.move_state.value">
+                                    <i class="fa fa-bookmark"/> Réservé
+                                    <t t-if="record.qty_reservee.raw_value">
+                                        (<field name="qty_reservee"/>)
+                                    </t>
                                 </span>
                             </div>
                         </div>
