@@ -188,13 +188,9 @@ class TitreAdopte(models.Model):
             return
         # Éditeur
         self.editeur = getattr(self.product_id, 'dsm_editeur', '') or ''
-        # Stock instantané
-        quants = self.env['stock.quant'].search([
-            ('product_id', '=', self.product_id.id),
-            ('location_id.usage', '=', 'internal'),
-        ])
-        self.qty_stock_reel = sum(q.quantity for q in quants)
-        self.qty_reserved = sum(q.reserved_quantity for q in quants)
+        # Stock instantané (champs standard du produit)
+        self.qty_stock_reel = self.product_id.qty_available
+        self.qty_reserved = self.product_id.qty_available - self.product_id.free_qty
         # Distributeur par défaut (premier fournisseur actif)
         sellers = self.product_id.seller_ids.filtered(
             lambda s: not s.date_end or s.date_end >= date.today()
@@ -206,27 +202,15 @@ class TitreAdopte(models.Model):
     # ── Méthodes stock ─────────────────────────────────────────────────
 
     def _refresh_stock(self):
-        """Rafraîchit stock réel et réservé depuis stock.quant (sans @api.depends)."""
-        product_ids = self.filtered('product_id').mapped('product_id').ids
-        if not product_ids:
-            return
-        quants = self.env['stock.quant'].read_group(
-            [
-                ('product_id', 'in', product_ids),
-                ('location_id.usage', '=', 'internal'),
-            ],
-            ['product_id', 'quantity:sum', 'reserved_quantity:sum'],
-            ['product_id'],
-        )
-        stock_map = {
-            q['product_id'][0]: (q['quantity'], q['reserved_quantity'])
-            for q in quants
-        }
+        """Rafraîchit stock réel et réservé via les champs standard du produit
+        (qty_available / free_qty), plus fiable qu'une lecture de stock.quant."""
         for rec in self:
-            if rec.product_id:
-                reel, reserved = stock_map.get(rec.product_id.id, (0.0, 0.0))
-                rec.qty_stock_reel = reel
-                rec.qty_reserved = reserved
+            if not rec.product_id:
+                continue
+            reel = rec.product_id.qty_available
+            libre = rec.product_id.free_qty
+            rec.qty_stock_reel = reel
+            rec.qty_reserved = reel - libre
 
     # ── Bouton Commander par ligne ──────────────────────────────────────
 

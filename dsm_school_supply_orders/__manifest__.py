@@ -12,12 +12,14 @@ Workflow :
 5. Génération des bons de commande en brouillon par fournisseur
     """,
     'author': 'DSM Librairie',
-    'depends': ['purchase', 'stock', 'sale'],
+    'depends': ['purchase', 'stock', 'sale', 'mail'],
     'data': [
         'security/ir.model.access.csv',
+        'data/sequence.xml',
         'wizard/import_excel_wizard_views.xml',
         'views/school_supply_session_views.xml',
         'views/liste_scolaire_views.xml',
+        'views/commande_scolaire_views.xml',
         'views/menu.xml',
     ],
     'installable': True,
